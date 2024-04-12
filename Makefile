@@ -27,6 +27,23 @@
 CC ?= gcc
 LD ?= ld
 
+CPP_DEBUG_FLAG := -DARC_DEBUG_ENABLE
+CPP_E9HACK_FLAG := -DARC_E9HACK_ENABLE
+
+ifeq (,$(wildcard ./e9hack.enable))
+	# Disable E9HACK
+	CPP_SERIAL_FLAG :=
+endif
+
+ifeq (,$(wildcard ./debug.enable))
+	# Disable debugging
+	CPP_DEBUG_FLAG :=
+else
+	# Must set serial flag if debugging
+	CPP_E9HACK_FLAG := -DARC_E9HACK_ENABLE
+endif
+
+
 PRODUCT := bootstrap.elf
 
 CFILES := $(shell find ./src/c/ -type f -name "*.c")
@@ -34,7 +51,7 @@ ASFILES := $(shell find ./src/asm/ -type f -name "*.asm")
 
 OFILES := $(CFILES:.c=.o) $(ASFILES:.asm=.o)
 
-CPPFLAGS := $(CPPFLAG_DEBUG) $(CPPFLAG_E9HACK) -I src/c/include -I $(ARC_ROOT)/initramfs/include
+CPPFLAGS := $(CPPFLAG_DEBUG) $(CPPFLAG_E9HACK) -I src/c/include -I $(ARC_ROOT)/initramfs/include $(CPP_DEBUG_FLAG) $(CPP_E9HACK_FLAG)
 CFLAGS := -m32 -c -fno-stack-protector -mno-sse -mno-sse2 -masm=intel -nostdlib -nodefaultlibs -fno-builtin
 
 LDFLAGS := -Tlinker.ld -melf_i386 -z max-page-size=0x1000 -o $(PRODUCT)
