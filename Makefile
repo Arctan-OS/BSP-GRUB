@@ -24,6 +24,9 @@
 # *
 # * @DESCRIPTION
 #*/
+CC ?= gcc
+LD ?= ld
+
 PRODUCT := bootstrap.elf
 
 CFILES := $(shell find ./src/c/ -type f -name "*.c")
@@ -38,8 +41,22 @@ LDFLAGS := -Tlinker.ld -melf_i386 -z max-page-size=0x1000 -o $(PRODUCT)
 
 NASMFLAGS := -f elf32
 
+.PHONY: all
 all: $(OFILES)
 	$(LD) $(LDFLAGS) $(OFILES)
+
+	mkdir -p iso/boot/grub
+	
+	# Copy various important things to grub directory
+	cp $(BASE_DIR)/initramfs.cpio iso/boot
+	cp kernel.elf iso/boot
+	cp bootstrap.elf iso/boot
+	cp $(BASE_DIR)/build-support/grub.cfg iso/boot/grub
+	
+	# Create ISO
+	grub-mkrescue -o Arctan.iso iso
+
+	cp Arctan.iso $(BASE_DIR)
 
 src/c/%.o: src/c/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
