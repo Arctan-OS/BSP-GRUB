@@ -44,7 +44,7 @@ uint64_t *create_table(uint64_t *parent, uint64_t vaddr, int level) {
 	uint64_t *table = (uint64_t *)Arc_ListAlloc(&physical_mem);
 
 	if (table == NULL) {
-		ARC_DEBUG(ERR, "Failed to allocate new PML%d table for virtual address 0x%"PRIX64"\n", level, vaddr)
+		ARC_DEBUG(ERR, "Failed to allocate new PML%d table for virtual address 0x%"PRIx64"\n", level, vaddr)
 		return NULL;
 	}
 
@@ -97,7 +97,7 @@ uint64_t *map_page(uint64_t *pml4, uint64_t vaddr, uint64_t paddr, int overwrite
 
 	if ((pml1[(vaddr >> 12) & 0x1FF] & 1) == 1 && !overwrite) {
 		// Cannot overwrite already existing entry
-		ARC_DEBUG(ERR, "Cannot overwrite 0x%"PRIX64":0x%"PRIX64"\n", vaddr, paddr)
+		ARC_DEBUG(ERR, "Cannot overwrite 0x%"PRIx64":0x%"PRIx64"\n", vaddr, paddr)
 		return NULL;
 	}
 

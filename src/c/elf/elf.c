@@ -146,7 +146,7 @@ uint64_t load_elf(uint64_t *pml4, void *file) {
 	ARC_DEBUG(INFO, "-----------\n")
 	ARC_DEBUG(INFO, "Loading ELF\n")
 
-	ARC_DEBUG(INFO, "Entry at: 0x%"PRIX64"\n", header->e_entry);
+	ARC_DEBUG(INFO, "Entry at: 0x%"PRIx64"\n", header->e_entry);
 
 	struct Elf64_Shdr *section_headers = ((struct Elf64_Shdr *)(file + header->e_shoff));
 	char *str_table_base = (char *)(file + section_headers[header->e_shstrndx].sh_offset);
@@ -168,7 +168,7 @@ uint64_t load_elf(uint64_t *pml4, void *file) {
 		int highest_address = (section.sh_size >= 0x1000) ? ALIGN(section.sh_size, 0x1000) / 0x1000 : 0;
 
 		ARC_DEBUG(INFO, "Section %d \"%s\" of type %s\n", i, (str_table_base + section.sh_name), section_types[section.sh_type]);
-		ARC_DEBUG(INFO, "\tOffset: 0x%"PRIX64" Size: 0x%"PRIX64" B, 0x%"PRIX64":0x%"PRIX64"\n", section.sh_offset, section.sh_size, paddr_file, vaddr);
+		ARC_DEBUG(INFO, "\tOffset: 0x%"PRIx64" Size: 0x%"PRIx64" B, 0x%"PRIx64":0x%"PRIx64"\n", section.sh_offset, section.sh_size, paddr_file, vaddr);
 
 		if (section.sh_type != SHT_PROGBITS && section.sh_type != SHT_NOBITS) {
 			// If the section isn't needed by the program, ignore it
@@ -191,7 +191,7 @@ uint64_t load_elf(uint64_t *pml4, void *file) {
 				paddr = (uintptr_t)Arc_ListAlloc(&physical_mem);
 				memset((void *)paddr, 0, 0x1000);
 
-				ARC_DEBUG(INFO, "\tSection is of type NOBITS, allocated 0x%"PRIX64" for it\n", paddr);
+				ARC_DEBUG(INFO, "\tSection is of type NOBITS, allocated 0x%"PRIx64" for it\n", paddr);
 			}
 
 			pml4 = map_page(pml4, vaddr + (j << 12), paddr, 0);

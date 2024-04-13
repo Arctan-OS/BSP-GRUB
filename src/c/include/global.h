@@ -31,10 +31,9 @@
 #include <arctan.h>
 #include <mm/freelist.h>
 #include <stdint.h>
-#include <stddef.h>
-#include <inttypes.h>
 #include <util.h>
 #include <arctan.h>
+#include <inttypes.h>
 
 #define ARC_HANG for (;;) __asm__("hlt");
 
@@ -53,6 +52,9 @@
         ({ __typeof__ (a) _a = (a); \
         __typeof__ (b) _b = (b); \
         _a < _b ? _a : _b; })
+
+#define abs(a)					\
+	(a < 0 ? -a : a)
 
 extern uint64_t *pml4;
 extern struct ARC_FreelistMeta physical_mem;

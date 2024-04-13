@@ -26,7 +26,7 @@
  * Main file containing the main helper function, which prepares the CPU
  * for the kernel.
 */
-#include "util.h"
+#include <util.h>
 #include <stdint.h>
 #include <global.h>
 #include <interface/printf.h>
@@ -52,7 +52,7 @@ int helper(void *mbi, uint32_t signature) {
 		ARC_HANG
 	}
 
-	_boot_meta.mb2i = mbi;
+	_boot_meta.boot_proc = ARC_BOOTPROC_MB2;
 
 	check_features();
 
@@ -71,11 +71,10 @@ int helper(void *mbi, uint32_t signature) {
 		}
 	}
 
-
 	// Map kernel
-	kernel_entry = load_elf(pml4, _boot_meta.kernel_elf);
+	kernel_entry = load_elf(pml4, (void *)((uint32_t)_boot_meta.kernel_elf));
 
-	_boot_meta.pmm_state = &physical_mem;
+	_boot_meta.pmm_state = (uintptr_t)&physical_mem;
 
 	return 0;
 }
