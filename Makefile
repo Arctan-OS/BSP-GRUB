@@ -4,10 +4,10 @@
 # * @author awewsomegamer <awewsomegamer@gmail.com>
 # *
 # * @LICENSE
-# * Arctan - Operating System Kernel
+# * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
 # * Copyright (C) 2023-2024 awewsomegamer
 # *
-# * This file is part of Arctan.
+# * This file is part of Arctan-MB2BSP
 # *
 # * Arctan is free software; you can redistribute it and/or
 # * modify it under the terms of the GNU General Public License
@@ -31,15 +31,15 @@ CPP_DEBUG_FLAG := -DARC_DEBUG_ENABLE
 CPP_E9HACK_FLAG := -DARC_E9HACK_ENABLE
 
 ifeq (,$(wildcard ./e9hack.enable))
-	# Disable E9HACK
+# Disable E9HACK
 	CPP_SERIAL_FLAG :=
 endif
 
 ifeq (,$(wildcard ./debug.enable))
-	# Disable debugging
+# Disable debugging
 	CPP_DEBUG_FLAG :=
 else
-	# Must set serial flag if debugging
+# Must set serial flag if debugging
 	CPP_E9HACK_FLAG := -DARC_E9HACK_ENABLE
 endif
 
@@ -63,14 +63,14 @@ all: $(OFILES)
 	$(LD) $(LDFLAGS) $(OFILES)
 
 	mkdir -p iso/boot/grub
-	
-	# Copy various important things to grub directory
+
+# Copy various important things to grub directory
 	cp $(BASE_DIR)/initramfs.cpio iso/boot
 	cp kernel.elf iso/boot
 	cp bootstrap.elf iso/boot
 	cp $(BASE_DIR)/build-support/grub.cfg iso/boot/grub
-	
-	# Create ISO
+
+# Create ISO
 	grub-mkrescue -o Arctan.iso iso
 
 	cp Arctan.iso $(BASE_DIR)
@@ -80,3 +80,9 @@ src/c/%.o: src/c/%.c
 
 src/asm/%.o: src/asm/%.asm
 	nasm $(NASMFLAGS) $< -o $@
+
+.PHONY: clean
+clean:
+	rm -rf iso
+	rm -f $(RODUCT)
+	find -type f -name "*.o" -delete

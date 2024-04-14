@@ -1,8 +1,8 @@
 /*
-    Arctan - Operating System Kernel
+    Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
     Copyright (C) 2023  awewsomegamer
 
-    This file is part of Arctan.
+    This file is part of Arctan-MB2BSP
 
     Arctan is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
