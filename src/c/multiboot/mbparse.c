@@ -149,17 +149,11 @@ int read_mb2i(void *mb2i) {
 			ARC_DEBUG(INFO, "Loaded at address: %"PRIx32"\n", info->load_base_addr)
 		}
 
-                case MULTIBOOT_TAG_TYPE_ACPI_NEW: {
-                        _boot_meta.rsdp = (uint64_t)(((uint8_t *)tag) + 8);
-                        _boot_meta.rsdp_version = 2;
-                        break;
-                }
-
+                case MULTIBOOT_TAG_TYPE_ACPI_NEW:
                 case MULTIBOOT_TAG_TYPE_ACPI_OLD:
                         _boot_meta.rsdp = (uint64_t)(((uint8_t *)tag) + 8);
-                        _boot_meta.rsdp_version = 1;
                         break;
-		}
+                }
 
 		tag = (struct multiboot_tag *)((uintptr_t)tag + ALIGN(tag->size, 8));
 	}

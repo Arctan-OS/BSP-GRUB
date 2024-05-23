@@ -73,8 +73,6 @@ struct ARC_BootMeta {
 	int arc_mmap_len;
 	/// RSDP address.
 	uint64_t rsdp;
-	/// RSDP version.
-	int rsdp_version;
 }__attribute__((packed));
 
 #endif
