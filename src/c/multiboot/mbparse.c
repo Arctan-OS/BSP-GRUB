@@ -148,6 +148,17 @@ int read_mb2i(void *mb2i) {
 
 			ARC_DEBUG(INFO, "Loaded at address: %"PRIx32"\n", info->load_base_addr)
 		}
+
+                case MULTIBOOT_TAG_TYPE_ACPI_NEW: {
+                        _boot_meta.rsdp = (uint64_t)(((uint8_t *)tag) + 8);
+                        _boot_meta.rsdp_version = 2;
+                        break;
+                }
+
+                case MULTIBOOT_TAG_TYPE_ACPI_OLD:
+                        _boot_meta.rsdp = (uint64_t)(((uint8_t *)tag) + 8);
+                        _boot_meta.rsdp_version = 1;
+                        break;
 		}
 
 		tag = (struct multiboot_tag *)((uintptr_t)tag + ALIGN(tag->size, 8));
@@ -176,10 +187,6 @@ int read_mb2i(void *mb2i) {
 		mmap_entries[i].base = entry.addr;
 		mmap_entries[i].len = entry.len;
 		mmap_entries[i].type = entry.type;
-
-		if (entry.type != MULTIBOOT_MEMORY_AVAILABLE) {
-			continue;
-		}
 
 		ARC_DEBUG(INFO, "Mapping entry %d (0x%"PRIx64", 0x%"PRIx64" B) into pml4\n", i, entry.addr, entry.len);
 
