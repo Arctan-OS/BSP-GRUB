@@ -32,7 +32,7 @@ CPP_E9HACK_FLAG := -DARC_E9HACK_ENABLE
 
 ifeq (,$(wildcard ./e9hack.enable))
 # Disable E9HACK
-	CPP_SERIAL_FLAG :=
+	CPP_E9HACK_FLAG :=
 endif
 
 ifeq (,$(wildcard ./debug.enable))
@@ -43,6 +43,10 @@ else
 	CPP_E9HACK_FLAG := -DARC_E9HACK_ENABLE
 endif
 
+ifneq (,$(wildcard ./hardware.enable))
+# hardware.enable is present, disable E9
+	CPP_E9HACK_FLAG :=
+endif
 
 PRODUCT := bootstrap.elf
 

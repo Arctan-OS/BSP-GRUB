@@ -65,9 +65,8 @@ int init_pmm(struct multiboot_tag_mmap *mmap, uintptr_t bootstrap_end) {
 			Arc_InitializeFreelist(base, ciel, 0x1000, &physical_mem);
 		} else {
 			struct ARC_FreelistMeta b = { 0 };
-			struct ARC_FreelistMeta c = { 0 };
-			Arc_InitializeFreelist(base, ciel, 0x1000, &physical_mem);
-			int err = Arc_ListLink(&physical_mem, &b, &c);
+			Arc_InitializeFreelist(base, ciel, 0x1000, &b);
+			int err = Arc_ListLink(&physical_mem, &b, &physical_mem);
 
 			if (err != 0) {
 				ARC_DEBUG(ERR, "Failed to link lists A and B\n")

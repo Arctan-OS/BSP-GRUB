@@ -29,9 +29,11 @@
 #include <arctan.h>
 #include <global.h>
 #include <interface/printf.h>
+#include <interface/terminal.h>
 
 void putchar_(char c) {
-	E9_HACK(c);
+        Arc_TermPutChar(c);
+        E9_HACK(c);
 }
 
 /**

@@ -27,7 +27,7 @@ PHDRS {
 }
 
 SECTIONS {
-	. = 2M;
+	. = 1M;
 
 	.text : {
 		*(.mb2header)
