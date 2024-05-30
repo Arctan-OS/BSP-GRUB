@@ -76,7 +76,7 @@ int helper(void *mbi, uint32_t signature) {
 
 	_boot_meta.pmm_state = (uintptr_t)&physical_mem;
 
-        ARC_DEBUG(INFO, "Done with bootstrapping\n");
+        ARC_DEBUG(INFO, "Done with bootstrapping, enabling paging and long mode, jumping to 0x%"PRIx64"\n", kernel_entry);
 
 	return 0;
 }
