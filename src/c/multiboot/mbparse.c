@@ -149,7 +149,7 @@ int read_mb2i(void *mb2i) {
                 case MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR: {
                         struct multiboot_tag_load_base_addr *info = (struct multiboot_tag_load_base_addr *)tag;
 
-                        ARC_DEBUG(INFO, "Loaded at address: %"PRIx32"\n", info->load_base_addr)
+                        ARC_DEBUG(INFO, "Loaded at address: 0x%"PRIx32"\n", info->load_base_addr)
                 }
 
                 case MULTIBOOT_TAG_TYPE_ACPI_NEW:
@@ -162,7 +162,7 @@ int read_mb2i(void *mb2i) {
         }
 
         ARC_DEBUG(INFO, "Finished reading multiboot information structure\n");
-        ARC_DEBUG(INFO, "End of bootstrap 0x%"PRIx32"\n", bootstrap_end)
+        ARC_DEBUG(INFO, "End of bootstrap 0x%"PRIx32" %\n", bootstrap_end)
 
         init_pmm(mmap, (uintptr_t)bootstrap_end);
 

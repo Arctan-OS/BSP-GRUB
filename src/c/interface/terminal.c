@@ -52,31 +52,45 @@ void Arc_TermPutChar(char c) {
         int sx = term_x * 8;
         int sy = term_y * 8;
 
-        for (int i = 0; i < 8; i++) {
-                int rx = 0;
-                for (int j = 8 - 1; j >= 0; j--) {
-                        if (((character_rom[c * 8 + i] >> j) & 1) == 1 && c != 0) {
-                                *((uint32_t *)term_address + (i + sy) * term_w + (sx + rx)) = 0x00FFFFFF;
-                        }
-                        rx++;
-                }
-        }
 
         switch (c) {
         case '\n': {
               term_x = 0;
               term_y++;
+              break;
+        }
+
+        case '\t': {
+            term_x += 8;
+            break;
+        }
+
+        case 0: {
+            break;
         }
 
         default: {
+                for (int i = 0; i < 8; i++) {
+                        int rx = 0;
+                        for (int j = 8 - 1; j >= 0; j--) {
+                                if (((character_rom[c * 8 + i] >> j) & 1) == 1 && c != 0) {
+                                        *((uint32_t *)term_address + (i + sy) * term_w + (sx + rx)) = 0x00FFFFFF;
+                                }
+                                rx++;
+                        }
+                }
+        
                 term_x++;
-
+        
                 if (term_x > term_w / 8) {
                         term_y++;
                         term_x = 0;
                 }
+        
+                break;
         }
         }
+
 
         if (term_y > term_h / 8) {
                 term_y = 0;

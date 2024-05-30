@@ -76,5 +76,7 @@ int helper(void *mbi, uint32_t signature) {
 
 	_boot_meta.pmm_state = (uintptr_t)&physical_mem;
 
+        ARC_DEBUG(INFO, "Done with bootstrapping\n");
+
 	return 0;
 }
