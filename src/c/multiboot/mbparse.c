@@ -56,8 +56,6 @@ int read_mb2i(void *mb2i) {
 
         tag = (struct multiboot_tag *)((uintptr_t)tag + 8);
 
-        uint64_t fb_size = 0;
-        uint64_t fb_addr = 0;
         int entries = 0;
 
         while (tag->type != 0 && tag < end) {
@@ -125,9 +123,6 @@ int read_mb2i(void *mb2i) {
                         ARC_DEBUG(INFO, "Framebuffer 0x%"PRIx64" (%d) %dx%dx%d\n", common.framebuffer_addr, common.framebuffer_type, common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 
                         mb2_boot_info.fb = (uintptr_t)info;
-
-                        fb_size = common.framebuffer_width * common.framebuffer_height * common.framebuffer_bpp;
-                        fb_addr = common.framebuffer_addr;
 
                         break;
                 }
@@ -199,17 +194,6 @@ int read_mb2i(void *mb2i) {
                                 ARC_DEBUG(ERR, "Mapping failed\n");
                                 ARC_HANG
                         }
-                }
-        }
-
-        // Quickly map framebuffer in
-        for (uint64_t i = 0; i < fb_size; i += 0x1000) {
-                uint64_t linear = (uint64_t)(fb_addr + i);
-                pml4 = map_page(pml4, linear + ARC_HHDM_VADDR, linear, 1);
-
-                if (pml4 == NULL) {
-                        ARC_DEBUG(ERR, "Mapping failed\n");
-                        ARC_HANG;
                 }
         }
 

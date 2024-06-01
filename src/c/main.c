@@ -46,6 +46,7 @@ uint64_t kernel_entry = 0;
 
 int helper(void *mbi, uint32_t signature) {
 	ARC_DEBUG(INFO, "Loaded\n");
+        *((uint8_t *)0xB8000) = 'C';
 
 	if (signature != MULTIBOOT2_BOOTLOADER_MAGIC) {
 		printf("System was not booted using a multiboot2 bootloader, stopping.\n");
@@ -77,6 +78,7 @@ int helper(void *mbi, uint32_t signature) {
 	_boot_meta.pmm_state = (uintptr_t)&physical_mem;
 
         ARC_DEBUG(INFO, "Done with bootstrapping, enabling paging and long mode, jumping to 0x%"PRIx64"\n", kernel_entry);
+        *((uint8_t *)0xB8002) = 'D';
 
 	return 0;
 }
