@@ -26,7 +26,7 @@
  * Provides a function for reading the multiboot2 boot information tag
  * structure.
 */
-#include "util.h"
+#include <util.h>
 #include <multiboot/mbparse.h>
 #include <multiboot/multiboot2.h>
 #include <global.h>
@@ -166,7 +166,7 @@ int read_mb2i(void *mb2i) {
 
         init_pmm(mmap, (uintptr_t)bootstrap_end);
 
-        int arc_mmap_size = entries * sizeof(struct ARC_MMap) / 0x1000;
+        int arc_mmap_size = entries * sizeof(struct ARC_MMap) / 0x1000 + 1;  // Round up
         struct ARC_MMap *mmap_entries = (struct ARC_MMap *)Arc_ListContiguousAlloc(&physical_mem, arc_mmap_size);
         memset(mmap_entries, 0, arc_mmap_size);
 
