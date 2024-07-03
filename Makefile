@@ -69,15 +69,15 @@ all: $(OFILES)
 	mkdir -p iso/boot/grub
 
 # Copy various important things to grub directory
-	cp $(BASE_DIR)/initramfs.cpio iso/boot
-	cp kernel.elf iso/boot
+	cp $(ARC_ROOT)/initramfs.cpio iso/boot
+	cp $(ARC_ROOT)/volatile/kernel/kernel.elf iso/boot
 	cp bootstrap.elf iso/boot
-	cp $(BASE_DIR)/build-support/grub.cfg iso/boot/grub
+	cp $(ARC_ROOT)/build-support/grub.cfg iso/boot/grub
 
 # Create ISO
 	grub-mkrescue -o Arctan.iso iso
 
-	cp Arctan.iso $(BASE_DIR)
+	cp Arctan.iso $(ARC_ROOT)
 
 src/c/%.o: src/c/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
