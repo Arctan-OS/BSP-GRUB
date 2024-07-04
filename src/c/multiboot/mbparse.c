@@ -170,19 +170,43 @@ int read_mb2i(void *mb2i) {
         struct ARC_MMap *mmap_entries = (struct ARC_MMap *)Arc_ListContiguousAlloc(&physical_mem, arc_mmap_size);
         memset(mmap_entries, 0, arc_mmap_size);
 
-        _boot_meta.arc_mmap = (uintptr_t)mmap_entries;
-        _boot_meta.arc_mmap_len = entries;
 
         // Create HHDM
         _boot_meta.hhdm_vaddr = 0xFFFFC00000000000;
         ARC_DEBUG(INFO, "Creating HHDM at 0x%"PRIx64"\n", ARC_HHDM_VADDR);
 
-        for (int i = 0; i < entries; i++) {
+        int mmap_entry = 0;
+
+        // Map HHDM and construct ARC_MMap
+        for (int i = 0; i < entries; i++, mmap_entry++) {
                 struct multiboot_mmap_entry entry = mmap->entries[i];
 
-                mmap_entries[i].base = entry.addr;
-                mmap_entries[i].len = entry.len;
-                mmap_entries[i].type = entry.type;
+                uint64_t addr = entry.addr;
+                uint64_t len = entry.len;
+                int type = entry.type;
+
+                if (entry.addr < (uint64_t)bootstrap_end) {
+                        // The entry starts before the end of the bootstrapper
+                        uint64_t delta = (uint64_t)bootstrap_end - entry.addr;
+
+                        if (delta < len) {
+                                mmap_entries[mmap_entry].base = addr;
+                                mmap_entries[mmap_entry].len = delta;
+                                mmap_entries[mmap_entry].type = MULTIBOOT_MEMORY_RESERVED;
+
+                                addr += delta;
+                                len -= delta;
+                                mmap_entry++;
+                        } else {
+                                // The entry does
+                                type = MULTIBOOT_MEMORY_RESERVED;
+                        }
+                }
+
+                // Set MMap entry
+                mmap_entries[mmap_entry].base = addr;
+                mmap_entries[mmap_entry].len = len;
+                mmap_entries[mmap_entry].type = type;
 
                 ARC_DEBUG(INFO, "Mapping entry %d (0x%"PRIx64", 0x%"PRIx64" B) into pml4\n", i, entry.addr, entry.len);
 
@@ -198,6 +222,8 @@ int read_mb2i(void *mb2i) {
         }
 
         _boot_meta.boot_info = (uintptr_t)&mb2_boot_info;
+        _boot_meta.arc_mmap = (uintptr_t)mmap_entries;
+        _boot_meta.arc_mmap_len = mmap_entry;
 
         return 0;
 }
