@@ -170,7 +170,6 @@ int read_mb2i(void *mb2i) {
         struct ARC_MMap *mmap_entries = (struct ARC_MMap *)Arc_ListContiguousAlloc(&physical_mem, arc_mmap_size);
         memset(mmap_entries, 0, arc_mmap_size);
 
-
         // Create HHDM
         _boot_meta.hhdm_vaddr = 0xFFFFC00000000000;
         ARC_DEBUG(INFO, "Creating HHDM at 0x%"PRIx64"\n", ARC_HHDM_VADDR);
