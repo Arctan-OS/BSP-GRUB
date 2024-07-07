@@ -339,6 +339,7 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 	}
 
 	_boot_meta.boot_info = (uint64_t)&mb2_bootinfo;
+	_boot_meta.boot_proc = ARC_BOOTPROC_MB2;
 
 	return 0;
 }

@@ -32,7 +32,7 @@
 
 #define ARC_HHDM_VADDR _boot_meta.hhdm_vaddr
 #define ARC_PHYS_TO_HHDM(physical) ((uintptr_t)(physical) + (uintptr_t)ARC_HHDM_VADDR)
-#define ARC_TO_HHDM_PHYS(hhdm) ((uintptr_t)(hhdm) - (uintptr_t)ARC_HHDM_VADDR)
+#define ARC_HHDM_TO_PHYS(hhdm) ((uintptr_t)(hhdm) - (uintptr_t)ARC_HHDM_VADDR)
 
 #define ARC_BOOTPROC_ARCTAN 1
 #define ARC_BOOTPROC_MB2    2
