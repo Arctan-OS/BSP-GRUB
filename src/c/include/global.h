@@ -27,13 +27,8 @@
 #ifndef ARC_GLOBAL_H
 #define ARC_GLOBAL_H
 
-#include <multiboot/multiboot2.h>
 #include <arctan.h>
-#include <mm/freelist.h>
-#include <stdint.h>
 #include <util.h>
-#include <arctan.h>
-#include <inttypes.h>
 
 #define ARC_HANG for (;;) __asm__("hlt");
 
@@ -56,10 +51,13 @@
 #define abs(a)					\
 	(a < 0 ? -a : a)
 
-extern uint64_t *pml4;
-extern struct ARC_FreelistMeta physical_mem;
+#define PAGE_SIZE 0x1000
 
 extern struct ARC_BootMeta _boot_meta;
+extern uint8_t __BOOTSTRAP_START__;
 extern uint8_t __BOOTSTRAP_END__;
+
+extern uint64_t bsp_image_base;
+extern uint64_t bsp_image_ciel;
 
 #endif

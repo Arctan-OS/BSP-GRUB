@@ -29,7 +29,7 @@
 #ifndef ARC_MULTIBOOT_MBPARSE_H
 #define ARC_MULTIBOOT_MBPARSE_H
 
-#include <mm/freelist.h>
+#include <stdint.h>
 
 /**
  * Reads the tags provided by boothloader.
@@ -40,6 +40,6 @@
  * @param void *mb2i - Pointer to the base of the first tag.
  * @return Error code (0: success).
  * */
-int read_mb2i(void *mb2i);
+int Arc_ParseMB2I(uint8_t *mb2i);
 
 #endif

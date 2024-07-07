@@ -26,8 +26,8 @@
  * Port of https://github.com/eyalroz/printf
 */
 
-#include <arctan.h>
 #include <global.h>
+
 #include <interface/printf.h>
 #include <interface/terminal.h>
 

@@ -1,82 +1,82 @@
-/**
- * @file main.c
- *
- * @author awewsomegamer <awewsomegamer@gmail.com>
- *
- * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
- *
- * This file is part of Arctan-MB2BSP
- *
- * Arctan is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *
- * @DESCRIPTION
- * Main file containing the main helper function, which prepares the CPU
- * for the kernel.
-*/
-#include <util.h>
 #include <stdint.h>
 #include <global.h>
-#include <interface/printf.h>
-#include <arch/x86/idt.h>
-#include <arch/x86/gdt.h>
-#include <arctan.h>
-#include <multiboot/mbparse.h>
-#include <mm/freelist.h>
+#include <mm/pmm.h>
 #include <mm/vmm.h>
-#include <multiboot/multiboot2.h>
-#include <arch/x86/cpuid.h>
+#include <arch/x86/gdt.h>
+#include <arch/x86/idt.h>
+#include <multiboot/mbparse.h>
+#include <inttypes.h>
 #include <elf/elf.h>
 
-struct ARC_FreelistMeta physical_mem = { 0 };
-uint64_t *pml4 = NULL;
 uint64_t kernel_entry = 0;
+uint64_t bsp_image_base = 0;
+uint64_t bsp_image_ciel = 0;
 
-int helper(void *mbi, uint32_t signature) {
-	ARC_DEBUG(INFO, "Loaded\n");
+int helper(uint8_t *mb2i, uint32_t signature) {
+	_boot_meta.hhdm_vaddr = 0xFFFFC00000000000;
 
-	if (signature != MULTIBOOT2_BOOTLOADER_MAGIC) {
-		printf("System was not booted using a multiboot2 bootloader, stopping.\n");
-		ARC_HANG
-	}
+	// Setup GDT
+	Arc_InstallGDT();
+	// Setup IDT
+	Arc_InstallIDT();
 
-	_boot_meta.boot_proc = ARC_BOOTPROC_MB2;
+	// Parse multiboot header
+	//   This stage will also construct the boostrap meta that
+	//   is passed to the kernel
+	//   This parsing will also construct a ARC_MMap structure
+	//   which will hold non-overlapping entries that will be used
+	//   by the PMM and later passed to the kernel. Entries which
+	//   preceed the end of the bootstrapper will be marked as "Bootstrapper"
+	Arc_ParseMB2I(mb2i);
 
-	check_features();
+	// Initialize freelist page frame allocator
+	//   Goal of this allocator is to make it so
+	//   all page frames below UINT32_MAX are allocatable
+	Arc_InitPMM();
 
-	install_gdt();
-	install_idt();
+	// Initialize HHDM
+	//   This will simply put together an HHDM, try to detect large
+	//   pages (2 MiB or 1 GiB) in order to save space within
+	//   the allocator
+	Arc_InitVMM();
 
-	read_mb2i(mbi);
+	ARC_DEBUG(INFO, "Constructing HHDM at 0x%"PRIx64":\n", _boot_meta.hhdm_vaddr);
 
-	// Identity map first 4MB
-	for (int i = 0; i < 4 * 512; i++) {
-		pml4 = map_page(pml4, i << 12, i << 12, 1);
+	struct ARC_MMap *mmap = (struct ARC_MMap *)_boot_meta.arc_mmap;
 
-		if (pml4 == NULL) {
-			ARC_DEBUG(ERR, "Mapping failed\n")
-			ARC_HANG
+	for (uint32_t i = 0; i < _boot_meta.arc_mmap_len; i++) {
+		uint64_t phys_base = mmap[i].base;
+		uint64_t virt_base = phys_base + _boot_meta.hhdm_vaddr;
+
+		ARC_DEBUG(INFO, "\tMapping MMap entry %d 0x%"PRIx64" -> 0x%"PRIx64"\n", i, phys_base, virt_base)
+
+		for (uint64_t page = 0; page < mmap[i].len; page += PAGE_SIZE) {
+			if (Arc_MapPageVMM(phys_base + page, virt_base + page, ARC_VMM_NO_EXEC) != 0) {
+				ARC_DEBUG(ERR, "\tFailed to construct HHDM!\n");
+				ARC_HANG;
+			}
 		}
 	}
 
-	// Map kernel
-	kernel_entry = load_elf(pml4, (void *)((uint32_t)_boot_meta.kernel_elf));
+	ARC_DEBUG(INFO, "Identity mapping bootstrapper:\n")
 
-	_boot_meta.pmm_state = (uintptr_t)&physical_mem;
+	// Map bootstrapper image into memory
+	for (uint64_t phys = bsp_image_base; phys <= bsp_image_ciel; phys += PAGE_SIZE) {
+		ARC_DEBUG(INFO, "\tIdentity mapping 4 KiB page: 0x%"PRIx64"\n", phys);
 
-        ARC_DEBUG(INFO, "Done with bootstrapping, enabling paging and long mode, jumping to 0x%"PRIx64"\n", kernel_entry);
+		if (Arc_MapPageVMM(phys, phys, 0) != 0) {
+			ARC_DEBUG(ERR, "\tFailed to identity map!\n");
+			ARC_HANG;
+		}
+	}
 
+	// Parse the Kernel ELF file and map it into memory using 4 KiB pages
+	// and set kernel_entry to the virtual address of where the kernel is
+	kernel_entry = Arc_LoadELF((uint8_t *)_boot_meta.kernel_elf);
+
+	ARC_DEBUG(INFO, "Finished bootstrapping, returning to assembly to setup long mode and jump to kernel (0x%"PRIx64")\n", kernel_entry);
+
+	// Jump back to the assembly phase, which will enable paging and put the
+	// system into long mode before jumping to the kernel
 	return 0;
 }

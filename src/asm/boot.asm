@@ -55,6 +55,15 @@ align 8
                     dd 0x0                              ; Allow bootloader to pick height
                     dd 0x0                              ; Allow bootloader to pick bpp
 align 8
+                    ; Relocatable Image tag
+                    dw 0xA
+                    dw 0x0
+                    dd 24
+                    dd 0x100000
+                    dd 0x10000000
+                    dd 0x1000
+                    dd 1
+align 8
                     ; End Of Tags tag
                     dw 0x0
                     dw 0x0

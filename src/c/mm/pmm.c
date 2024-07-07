@@ -1,5 +1,5 @@
 /**
- * @file pmm.c
+ * @file freelist.c
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
@@ -23,60 +23,79 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @DESCRIPTION
- * Simple PMM initializer.
+ * Abstract freelist implementation.
 */
-#include "mm/freelist.h"
+#include <mm/freelist.h>
+#include <arctan.h>
 #include <mm/pmm.h>
 #include <global.h>
+#include <stdint.h>
 
-// Return 0: success
-int init_pmm(struct multiboot_tag_mmap *mmap, uintptr_t bootstrap_end) {
-	ARC_DEBUG(INFO, "Initializing PMM\n")
+struct ARC_FreelistMeta *pmm_meta = NULL;
 
-	int entries = (mmap->size - sizeof(struct multiboot_tag_mmap)) / mmap->entry_size;
+void *Arc_AllocPMM() {
+	return Arc_ListAlloc(pmm_meta);
+}
 
-	for (int i = 0; i < entries; i++) {
-		struct multiboot_mmap_entry entry = mmap->entries[i];
+void *Arc_FreePMM(void *address) {
+	return Arc_ListFree(pmm_meta, address);
+}
 
-		if ((entry.addr < bootstrap_end && entry.addr + entry.len < bootstrap_end) || entry.type != MULTIBOOT_MEMORY_AVAILABLE) {
-			// Entry not suitable for a freelist table
+void *Arc_ContiguousAllocPMM(int objects) {
+	return Arc_ListContiguousAlloc(pmm_meta, objects);
+}
+
+void *Arc_ContiguousFreePMM(void *address, int objects) {
+	return Arc_ListContiguousFree(pmm_meta, address, objects);
+}
+
+int Arc_InitPMM() {
+	struct ARC_MMap *mmap = (struct ARC_MMap *)_boot_meta.arc_mmap;
+
+	if (mmap == NULL || _boot_meta.arc_mmap_len <= 0) {
+		ARC_DEBUG(ERR, "MMap is NULL or contains 0 entries, failed to initialize PMM\n");
+		return -1;
+	}
+
+	ARC_DEBUG(INFO, "Initializing base freelist page frame allocator (MMap: %p)\n", mmap);
+
+	for (int i = 0; i < _boot_meta.arc_mmap_len; i++) {
+		if (mmap[i].type != ARC_MEMORY_AVAILABLE) {
 			continue;
 		}
 
-		// This entry either contains the bootstrap_end or is located after
-		ARC_DEBUG(INFO, "Entry %d suitable for freelist\n", i)
-
-		if ((uint32_t)(entry.addr >> 32) > 0) {
-			ARC_DEBUG(INFO, "\tEntry %d is above 32-bit address range, ignoring\n", i)
+		if (((mmap[i].base >> 32) & UINT32_MAX) > 0) {
+			ARC_DEBUG(WARN, "Entry %d is outside of 32-bit address space, cannot initialize into freelist\n", i);
 			continue;
 		}
 
-		void *base = (void *)((uint32_t)entry.addr);
-		void *ciel = (void *)((uint32_t)entry.addr + (uint32_t)entry.len - 0x1000);
+		void *base = (void *)mmap[i].base;
+		void *ciel = (void *)(mmap[i].base + mmap[i].len);
 
-		if (entry.addr < bootstrap_end && entry.addr + entry.len > bootstrap_end) {
-			// bootstrap_end contained is in this entry
-			base = (void *)ALIGN(bootstrap_end, 0x1000);
-		}
+		ARC_DEBUG(INFO, "\tFound available entry %d, initializing a freelist\n", i);
 
-		ARC_DEBUG(INFO, "\tInitializing freelist 0x%"PRIxPTR" -> 0x%"PRIxPTR"\n", (uintptr_t)base, (uintptr_t)ciel)
+		void *list = Arc_InitializeFreelist(base, ciel, PAGE_SIZE);
 
-		if (physical_mem.base == NULL) {
-			Arc_InitializeFreelist(base, ciel, 0x1000, &physical_mem);
+		int ret = 0;
+
+		if (pmm_meta == NULL) {
+			// Create primary list
+			ARC_DEBUG(INFO, "Established primary list\n");
+			pmm_meta = list;
 		} else {
-			struct ARC_FreelistMeta b = { 0 };
-			Arc_InitializeFreelist(base, ciel, 0x1000, &b);
-			int err = Arc_ListLink(&physical_mem, &b, &physical_mem);
+			ARC_DEBUG(INFO, "Linking newly made list into primary\n")
+			// Link lists
+			ret = Arc_ListLink(pmm_meta, list);
+		}
 
-			if (err != 0) {
-				ARC_DEBUG(ERR, "Failed to link lists A and B\n")
-				// TODO: Do something, currently we hope this does not happen.
-				//       Idealy pick the larger list and copy it into A.
-			}
+		if (ret != 0) {
+			ARC_DEBUG(INFO, "Failed to link lists (%p, %p), code: %d\n", pmm_meta, list, ret);
 		}
 	}
 
-	ARC_DEBUG(INFO, "Initialized PMM\n")
+	_boot_meta.pmm_state = (uint64_t)pmm_meta;
+
+	ARC_DEBUG(INFO, "Successfully initialized PMM\n");
 
 	return 0;
 }

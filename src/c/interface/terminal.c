@@ -36,7 +36,7 @@ int term_h = 0;
 int term_bpp = 0;
 int term_x = 0;
 int term_y = 0;
-
+	
 void Arc_SetTerm(void *address, int w, int h, int bpp) {
         term_address = address;
         term_w = w;
@@ -49,9 +49,21 @@ void Arc_TermPutChar(char c) {
                 return;
         }
 
+        if (term_x >= term_w / 8) {
+                term_y++;
+                term_x = 0;
+        }
+
+        if (term_y >= term_h / 8) {
+                term_y--;
+                term_x = 0;
+
+		memcpy(term_address, term_address + term_w * 8 * (term_bpp / 8), term_w * (term_h - 1) * (term_bpp / 8));
+		memset(term_address + term_w * (term_h) * (term_bpp / 8), 0, term_w * 8 * (term_bpp / 8));
+        }
+
         int sx = term_x * 8;
         int sy = term_y * 8;
-
 
         switch (c) {
         case '\n': {
@@ -70,11 +82,12 @@ void Arc_TermPutChar(char c) {
         }
 
         default: {
+
                 for (int i = 0; i < 8; i++) {
                         int rx = 0;
                         for (int j = 8 - 1; j >= 0; j--) {
                                 if (((character_rom[c * 8 + i] >> j) & 1) == 1 && c != 0) {
-                                        *((uint32_t *)term_address + (i + sy) * term_w + (sx + rx)) = 0x00FFFFFF;
+                                        *((uint32_t *)term_address + (i + sy) * term_w + (sx + rx)) = 0xFFFFFFFF;
                                 }
                                 rx++;
                         }
@@ -82,20 +95,7 @@ void Arc_TermPutChar(char c) {
         
                 term_x++;
         
-                if (term_x > term_w / 8) {
-                        term_y++;
-                        term_x = 0;
-                }
-        
                 break;
         }
         }
-
-
-        if (term_y > term_h / 8) {
-                term_y = 0;
-                term_x = 0;
-                memset(term_address, 0, term_w * term_h * (term_bpp / 8));
-        }
-
 }

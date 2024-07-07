@@ -28,24 +28,23 @@
 #include <util.h>
 
 int strcmp(char *a, char *b) {
-	int sum = 0;
-	while (*a != 0) {
-		sum += *a - *b;
+	uint8_t ca = (uint8_t)*a;
+	uint8_t cb = (uint8_t)*b;
 
+	while (ca == cb && ca != 0 && cb != 0) {
 		a++;
 		b++;
+		ca = (uint8_t)*a;
+		cb = (uint8_t)*b;
 	}
 
-	return sum;
+	return ca - cb;
 }
 
 int memcpy(void *a, void *b, size_t size) {
 	size_t i = 0;
 	while (i < size) {
 		*(uint8_t *)(a + i) = *(uint8_t *)(b + i);
-		if (i < 6) {
-			ARC_DEBUG(INFO, "(%p) %02X (%p )%02X\n", b, *(uint8_t *)(b + i), a,*(uint8_t *)(a + i));
-		}
 		i++;
 	}
 

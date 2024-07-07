@@ -1,14 +1,13 @@
-%if 0
 /**
- * @file sse.asm
+ * @file atomics.h
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
+ * Arctan - Operating System Kernel
  * Copyright (C) 2023-2024 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan.
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,25 +24,20 @@
  *
  * @DESCRIPTION
 */
-%endif
-bits 32
-%define FXSAVE_SIZE 512
+#ifndef ARC_LIB_ATOMICS_H
+#define ARC_LIB_ATOMICS_H
 
-global _osxsave_support
-extern fxsave_space
-_osxsave_support:   push ecx
-                    push edx
-                    push eax
-                    lea eax, [rel fxsave_space]
-                    fxsave [eax]
+#include <stdatomic.h>
+#include <stdbool.h>
 
+/// Generic spinlock
+typedef _Atomic int ARC_GenericSpinlock;
 
-                    mov ecx, 0
-                    xgetbv
-                    or eax, 0b111
-                    xsetbv
-                    pop eax
-                    pop edx
-                    pop ecx
+/// Generic mutex
+typedef _Atomic int ARC_GenericMutex;
 
-                    ret
+int Arc_MutexStaticInit(ARC_GenericMutex *mutex);
+int Arc_MutexLock(ARC_GenericMutex *mutex);
+int Arc_MutexUnlock(ARC_GenericMutex *mutex);
+
+#endif

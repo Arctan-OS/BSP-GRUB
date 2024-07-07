@@ -25,6 +25,7 @@
  * @DESCRIPTION
  * Abstract freelist implementation.
 */
+#include <lib/atomics.h>
 #include <util.h>
 #include <global.h>
 #include <mm/freelist.h>
@@ -34,14 +35,31 @@
 // Allocate one object in given list
 // Return: non-NULL = success
 void *Arc_ListAlloc(struct ARC_FreelistMeta *meta) {
+	Arc_MutexLock(&meta->mutex);
+
 	// Get address, mark as used
 	void *address = (void *)meta->head;
 	meta->head = meta->head->next;
 
+	meta->free_objects--;
+
+	Arc_MutexUnlock(&meta->mutex);
+
 	return address;
 }
 
-void *Arc_ListContiguousAlloc(struct ARC_FreelistMeta *meta, int objects) {
+void *Arc_ListContiguousAlloc(struct ARC_FreelistMeta *meta, uint64_t objects) {
+	while (meta->free_objects < objects && meta->next != NULL) {
+		meta = meta->next;
+	}
+
+	if (meta == NULL) {
+		ARC_DEBUG(INFO, "Found meta is NULL\n");
+		return NULL;
+	}
+
+	Arc_MutexLock(&meta->mutex);
+
 	struct ARC_FreelistMeta to_free = { 0 };
 	to_free.object_size = meta->object_size;
 	to_free.base = meta->base;
@@ -91,7 +109,11 @@ void *Arc_ListContiguousAlloc(struct ARC_FreelistMeta *meta, int objects) {
 		object_count++;
 	}
 
+	meta->free_objects -= objects;
+
 	if (fails == 0) {
+		Arc_MutexUnlock(&meta->mutex);
+
 		// FIRST TRY!!!!
 		// Just return, no pages to be freed
 		return min(base, allocation);
@@ -106,16 +128,21 @@ void *Arc_ListContiguousAlloc(struct ARC_FreelistMeta *meta, int objects) {
 		current = next;
 	}
 
+	Arc_MutexUnlock(&meta->mutex);
+
 	return min(base, allocation);
 }
 
 // Free given address in given list
 // Return: non-NULL = success
 void *Arc_ListFree(struct ARC_FreelistMeta *meta, void *address) {
+	Arc_MutexLock(&meta->mutex);
+
 	struct ARC_FreelistNode *node = (struct ARC_FreelistNode *)address;
 
 	if (node == NULL || (node < meta->base || node > meta->ciel)) {
 		// Node doesn't exist, is below the freelist, or is above, return NULL
+		Arc_MutexUnlock(&meta->mutex);
 		return NULL;
 	}
 
@@ -123,13 +150,23 @@ void *Arc_ListFree(struct ARC_FreelistMeta *meta, void *address) {
 	node->next = meta->head;
 	meta->head = node;
 
+	meta->free_objects++;
+
+	Arc_MutexUnlock(&meta->mutex);
+
 	return address;
 }
 
-void *Arc_ListContiguousFree(struct ARC_FreelistMeta *meta, void *address, int objects) {
+void *Arc_ListContiguousFree(struct ARC_FreelistMeta *meta, void *address, uint64_t objects) {
+	Arc_MutexLock(&meta->mutex);
+
 	for (int i = objects - 1; i >= 0; i--) {
 		Arc_ListFree(meta, address + (i * meta->object_size));
 	}
+
+	meta->free_objects += objects;
+
+	Arc_MutexUnlock(&meta->mutex);
 
 	return address;
 }
@@ -137,16 +174,9 @@ void *Arc_ListContiguousFree(struct ARC_FreelistMeta *meta, void *address, int o
 // Combine list A and list B into a single list, combined
 // Return: 0 = success
 // Return: -1 = object size mismatch
-// Return: -2 = lists are dirty *
-//
-// *: The lists have already been allocated into, thus cannot be
-//    combined nicely. If they were to be combined, data within
-//    the higher list would be lost
-int Arc_ListLink(struct ARC_FreelistMeta *A, struct ARC_FreelistMeta *B, struct ARC_FreelistMeta *combined) {
-	if (A->head != A->base && B->head != B->base) {
-		// Both lists are dirty, cannot link lists
-		// If only a single list is dirty, linking
-		// should be fine
+// Return: -2 = either list was NULL
+int Arc_ListLink(struct ARC_FreelistMeta *A, struct ARC_FreelistMeta *B) {
+	if (A == NULL || B == NULL) {
 		return -2;
 	}
 
@@ -155,31 +185,37 @@ int Arc_ListLink(struct ARC_FreelistMeta *A, struct ARC_FreelistMeta *B, struct 
 		return -1;
 	}
 
-	combined->object_size = A->object_size;
+	Arc_MutexLock(&A->mutex);
 
-	if ((uintptr_t)A->base < (uintptr_t)B->base) {
-		// A is lower than B, link with A as base
-		combined->base = A->base;
-		combined->ciel = B->ciel;
-		combined->head = A->head;
-
-		return 0;
+	// Advance to the last list
+	struct ARC_FreelistMeta *last = A;
+	while (last->next != NULL) {
+		Arc_MutexLock(&last->next->mutex);
+		Arc_MutexUnlock(&last->mutex);
+		last = last->next;
 	}
 
-	// B is lower than A, link with B as base
-	combined->base = B->base;
-	combined->ciel = B->ciel;
-	combined->head = B->head;
+	// Link A and B
+	last->next = B;
+
+	Arc_MutexUnlock(&last->mutex);
 
 	return 0;
 }
 
-// void *base - Base address for the freelist
-// void *ciel - Cieling address (address of last usable object) for the freelist
-// int object_size - The size of each object
-// struct Arc_FreelistMeta *meta - Generated metadata for the freelist (KEEP AT ALL COSTS)
-// Return: 0 = success
-int Arc_InitializeFreelist(void *_base, void *_ciel, int _object_size, struct ARC_FreelistMeta *meta) {
+struct ARC_FreelistMeta *Arc_InitializeFreelist(void *_base, void *_ciel, uint64_t _object_size) {
+	if (_base == NULL || _ciel == NULL || _object_size == 0) {
+		return NULL;
+	}
+
+	struct ARC_FreelistMeta *meta = (struct ARC_FreelistMeta *)_base;
+
+	Arc_MutexStaticInit(&meta->mutex);
+
+	// Number of objects to accomodate meta
+	int objects = sizeof(struct ARC_FreelistMeta) / _object_size;
+	_base += objects * _object_size;
+
 	struct ARC_FreelistNode *base = (struct ARC_FreelistNode *)_base;
 	struct ARC_FreelistNode *ciel = (struct ARC_FreelistNode *)_ciel;
 
@@ -188,6 +224,7 @@ int Arc_InitializeFreelist(void *_base, void *_ciel, int _object_size, struct AR
 	meta->head = base;
 	meta->ciel = ciel;
 	meta->object_size = _object_size;
+	meta->free_objects = ((uint64_t)ciel - (uint64_t)base) / _object_size;
 
 	// Initialize the linked list
 	for (; _base < _ciel; _base += _object_size) {
@@ -197,5 +234,5 @@ int Arc_InitializeFreelist(void *_base, void *_ciel, int _object_size, struct AR
 		current->next = next;
 	}
 
-	return 0;
+	return meta;
 }

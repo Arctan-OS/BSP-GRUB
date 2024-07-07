@@ -1,13 +1,13 @@
 /**
- * @file cpuid.h
+ * @file atomics.c
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
+ * Arctan - Operating System Kernel
  * Copyright (C) 2023-2024 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan.
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,24 +23,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @DESCRIPTION
- * A file to check and enable various CPU features.
 */
-#ifndef ARC_ARCH_X86_CPUID_H
-#define ARC_ARCH_X86_CPUID_H
+#include <lib/atomics.h>
+#include <util.h>
 
-/**
- * Check for CPU features.
- *
- * Checks for various CPU features, currently also enables
- * these features. if PAE, Extended CPUID functions, or LM
- * are not supported, this function will hang.
- *
- * @return An integer specifying which features are supported.
- * */
-int check_features();
-/**
- * Unused
- * */
-int enable_features();
+int Arc_MutexStaticInit(ARC_GenericMutex *mutex) {
+	if (mutex == NULL) {
+		return 1;
+	}
 
-#endif
+	memset(mutex, 0, sizeof(ARC_GenericMutex));
+
+	return 0;
+}
+
+int Arc_MutexLock(ARC_GenericMutex *mutex) {
+	// Atomically lock and yield if it is locked
+	(void)mutex;
+	return 0;
+}
+
+int Arc_MutexUnlock(ARC_GenericMutex *mutex) {
+	// Atomically unlock
+	(void)mutex;
+	return 0;
+}

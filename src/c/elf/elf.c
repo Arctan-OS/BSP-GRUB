@@ -1,47 +1,42 @@
-/**
- * @file elf.c
- *
- * @author awewsomegamer <awewsomegamer@gmail.com>
- *
- * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
- *
- * This file is part of Arctan-MB2BSP
- *
- * Arctan is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *
- * @DESCRIPTION
- * Simple, tiny, buggy ELF loader.
-*/
-#include <global.h>
-#include <mm/freelist.h>
 #include <elf/elf.h>
+#include <global.h>
+#include <inttypes.h>
 #include <mm/vmm.h>
+#include <mm/pmm.h>
 
-#define SHT_NULL 0
+#define SHT_NULL     0
 #define SHT_PROGBITS 1
-#define SHT_SYMTAB 2
-#define SHT_STRTAB 3
-#define SHT_RELA 4
-#define SHT_HASH 5
-#define SHT_DYNAMIC 6
-#define SHT_NOTE 7
-#define SHT_NOBITS 8
-#define SHT_REL 9
-#define SHT_SHLIB 10
-#define SHT_DYNSYM 11
+#define SHT_SYMTAB   2
+#define SHT_STRTAB   3
+#define SHT_RELA     4
+#define SHT_HASH     5
+#define SHT_DYNAMIC  6
+#define SHT_NOTE     7
+#define SHT_NOBITS   8
+#define SHT_REL      9
+#define SHT_SHLIB    10
+#define SHT_DYNSYM   11
+
+#define EI_MAG0        0
+#define EI_MAG1        1
+#define EI_MAG2        2
+#define EI_MAG3        3
+
+#define EI_CLASS       4
+#define CLASS_32       1
+#define CLASS_64       2
+
+#define EI_DATA        5
+#define EI_VERSION     6
+
+#define EI_OSABI       7
+#define ABI_SYSV       0
+#define ABI_HPUX       1
+#define ABI_STANDALONE 2
+
+#define EI_ABIVERSION  8
+#define EI_PAD         9
+#define EI_NIDENT      16
 
 static const char *section_types[] = {
 	[SHT_NULL] = "NULL",
@@ -127,83 +122,57 @@ struct Elf64_Phdr {
 	Elf64_Xword p_align; /* Alignment of segment */
 }__attribute__((packed));
 
-// TODO: Support PIE objects
-// Return e_entry: success
-// Return 0: not ELF
-// Return 1: mapping failed
-// TODO: Better return values
-uint64_t load_elf(uint64_t *pml4, void *file) {
-	uint64_t *old_pml4 = pml4;
-	struct Elf64_Ehdr *header = (struct Elf64_Ehdr *)file;
+uint64_t elf_load64(uint8_t *data) {
+	ARC_DEBUG(INFO, "Loading 64-bit ELF file (%p)\n", data);
 
-	if (header->e_ident[0] != 0x7F || header->e_ident[1] != 'E' ||
-	    header->e_ident[2] != 'L' || header->e_ident[3] != 'F') {
-		// Memory is not of type ELF, error
-		ARC_DEBUG(ERR, "Memory region provided is not an ELF file\n");
-		return 0;
-	}
+	struct Elf64_Ehdr *header = (struct Elf64_Ehdr *)data;
 
-	ARC_DEBUG(INFO, "-----------\n")
-	ARC_DEBUG(INFO, "Loading ELF\n")
+	uint64_t entry_addr = header->e_entry;
 
-	ARC_DEBUG(INFO, "Entry at: 0x%"PRIx64"\n", header->e_entry);
+	uint32_t section_count = header->e_shnum;
+	ARC_DEBUG(INFO, "Mapping sections (%d sections):\n", section_count);
 
-	struct Elf64_Shdr *section_headers = ((struct Elf64_Shdr *)(file + header->e_shoff));
-	char *str_table_base = (char *)(file + section_headers[header->e_shstrndx].sh_offset);
+	struct Elf64_Shdr strings = ((struct Elf64_Shdr *)(data + header->e_shoff))[header->e_shstrndx];
+	for (uint32_t i = 0; i < section_count; i++) {
+		struct Elf64_Shdr section_header = ((struct Elf64_Shdr *)(data + header->e_shoff))[i];
 
-	for (int i = 0; i < header->e_shnum; i++) {
-		struct Elf64_Shdr section = section_headers[i];
+		uint64_t load_base = section_header.sh_addr;
+		uint64_t phys_base = (uint64_t)data + section_header.sh_offset;
+		uint64_t size = section_header.sh_size;
+		char *string = (char *)((uint64_t)data + strings.sh_offset + section_header.sh_name);
 
-		if (section.sh_type == SHT_NULL) {
-			// Section is NULL, just ignore
+		ARC_DEBUG(INFO, "\t%3d: 0x%016"PRIx64" -> 0x%016"PRIx64", 0x%016"PRIx64" B | %s\n", i, phys_base, load_base, size, string);
+
+		if (load_base == 0 || size == 0) {
+			ARC_DEBUG(INFO, "\t\tSkipping as load_base or size is 0\n");
 			continue;
 		}
 
-		// Get the physical address of the section in the file
-		uint64_t paddr_file = (uintptr_t)file + section.sh_offset;
-		// Get the virtual address at which the section wants to be loaded
-		uint64_t vaddr = section.sh_addr;
-		// Calculate the number of pages used by the section
-		// If the section size is less than < 0x1000, don't bother rounding up
-		int highest_address = (section.sh_size >= 0x1000) ? ALIGN(section.sh_size, 0x1000) / 0x1000 : 0;
+		if (section_header.sh_type == SHT_NOBITS) {
+			uint32_t objects = ALIGN(size, PAGE_SIZE) / PAGE_SIZE;
 
-		ARC_DEBUG(INFO, "Section %d \"%s\" of type %s\n", i, (str_table_base + section.sh_name), section_types[section.sh_type]);
-		ARC_DEBUG(INFO, "\tOffset: 0x%"PRIx64" Size: 0x%"PRIx64" B, 0x%"PRIx64":0x%"PRIx64"\n", section.sh_offset, section.sh_size, paddr_file, vaddr);
+			ARC_DEBUG(INFO, "\t\tSection is of type NOBITS, allocating %d pages and mapping\n", objects);
 
-		if (section.sh_type != SHT_PROGBITS && section.sh_type != SHT_NOBITS) {
-			// If the section isn't needed by the program, ignore it
-			continue;
+			phys_base = (uint64_t)Arc_ContiguousAllocPMM(objects);
+
+			ARC_DEBUG(INFO, "\t\tSection new phys_base: 0x%"PRIx64"\n", phys_base);
 		}
 
-		// Page count == 0, but it is a section we need?
-		// Re-calculate without the check if the size < 0
-		highest_address = ALIGN(section.sh_size, 0x1000) / 0x1000;
-
-		ARC_DEBUG(INFO, "\tNeed to map %d page(s)\n", highest_address);
-
-		// Map into memory
-		for (int j = 0; j < highest_address; j++) {
-			uint32_t paddr = paddr_file + (j << 12);
-
-			if (section.sh_type == SHT_NOBITS) {
-				// Section is not present in file, allocate
-				// memory for it
-				paddr = (uintptr_t)Arc_ListAlloc(&physical_mem);
-				memset((void *)paddr, 0, 0x1000);
-
-				ARC_DEBUG(INFO, "\tSection is of type NOBITS, allocated 0x%"PRIx64" for it\n", paddr);
-			}
-
-			pml4 = map_page(pml4, vaddr + (j << 12), paddr, 0);
-
-			if (pml4 == NULL || (pml4 != old_pml4 && old_pml4 != NULL)) {
-				ARC_DEBUG(INFO, "\tOverlapping section, ignoring\n");
-				pml4 = old_pml4;
-			}
+		for (uint64_t page = 0; page < size; page += PAGE_SIZE) {
+			Arc_MapPageVMM(phys_base + page, load_base + page, 0);
 		}
 	}
 
-	ARC_DEBUG(INFO, "-----------\n")
+	return entry_addr;
+}
 
-	return header->e_entry;
+uint64_t Arc_LoadELF(uint8_t *data) {
+	struct Elf64_Ehdr *header = (struct Elf64_Ehdr *)data;
+
+	if (header->e_ident[EI_CLASS] != CLASS_64) {
+		ARC_DEBUG(ERR, "ELF file is not 64-bit\n");
+		return -1;
+	}
+
+	return elf_load64(data);
 }

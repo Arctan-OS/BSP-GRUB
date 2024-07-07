@@ -28,6 +28,7 @@
 #include <arch/x86/idt.h>
 #include <arch/x86/io/port.h>
 #include <global.h>
+#include <stdint.h>
 
 struct idt_desc {
 	uint16_t limit;
@@ -136,14 +137,14 @@ void interrupt_junction(uint32_t esp) {
 
 	// Dump registers
 	ARC_DEBUG(ERR, "Received Interrupt %d, %s\n", args->code, exception_names[args->code]);
-	ARC_DEBUG(ERR, "EAX: 0x%X\n", args->eax);
-	ARC_DEBUG(ERR, "EBX: 0x%X\n", args->ebx);
-	ARC_DEBUG(ERR, "ECX: 0x%X\n", args->ecx);
-	ARC_DEBUG(ERR, "EDX: 0x%X\n", args->edx);
-	ARC_DEBUG(ERR, "ESI: 0x%X\n", args->esi);
-	ARC_DEBUG(ERR, "EDI: 0x%X\n", args->edi);
-	ARC_DEBUG(ERR, "ESP: 0x%X\n", args->esp);
-	ARC_DEBUG(ERR, "EBP: 0x%X\n", args->ebp);
+	ARC_DEBUG(ERR, "EAX: 0x%x\n", args->eax);
+	ARC_DEBUG(ERR, "EBX: 0x%x\n", args->ebx);
+	ARC_DEBUG(ERR, "ECX: 0x%x\n", args->ecx);
+	ARC_DEBUG(ERR, "EDX: 0x%x\n", args->edx);
+	ARC_DEBUG(ERR, "ESI: 0x%x\n", args->esi);
+	ARC_DEBUG(ERR, "EDI: 0x%x\n", args->edi);
+	ARC_DEBUG(ERR, "ESP: 0x%x\n", args->esp);
+	ARC_DEBUG(ERR, "EBP: 0x%x\n", args->ebp);
 
 	// If we enter none of the following conditions,
 	// this is the return address
@@ -227,7 +228,7 @@ extern void _idt_stub_29_();
 extern void _idt_stub_30_();
 extern void _idt_stub_31_();
 
-void install_idt() {
+void Arc_InstallIDT() {
 	install_idt_gate(0, (uintptr_t)&_idt_stub_0_, 0x08, 0x8E);
 	install_idt_gate(1, (uintptr_t)&_idt_stub_1_, 0x08, 0x8E);
 	install_idt_gate(2, (uintptr_t)&_idt_stub_2_, 0x08, 0x8E);

@@ -28,6 +28,7 @@ PHDRS {
 
 SECTIONS {
 	. = 1M;
+	__BOOTSTRAP_START__ = .;
 
 	.text : {
 		*(.mb2header)

@@ -25,8 +25,8 @@
  * @DESCRIPTION
  * C headers for assembly I/O functions.
 */
-#ifndef ARC_IO_PORT_H
-#define ARC_IO_PORT_H
+#ifndef ARC_ARCH_X86_IO_PORT_H
+#define ARC_ARCH_X86_IO_PORT_H
 
 #include <stdint.h>
 

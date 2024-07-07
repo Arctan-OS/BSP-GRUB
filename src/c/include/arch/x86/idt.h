@@ -34,6 +34,6 @@
  * Installs all ISRs and initializes the
  * 8259 PIC in a master / slave configuration.
  * */
-void install_idt();
+void Arc_InstallIDT();
 
 #endif

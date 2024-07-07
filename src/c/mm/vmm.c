@@ -1,107 +1,131 @@
-/**
- * @file vmm.c
- *
- * @author awewsomegamer <awewsomegamer@gmail.com>
- *
- * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
- *
- * This file is part of Arctan-MB2BSP
- *
- * Arctan is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
- *
- * @DESCRIPTION
- * Simple virtual memory manager.
-*/
 #include <mm/vmm.h>
-#include <mm/freelist.h>
+#include <mm/pmm.h>
+#include <global.h>
+#include <cpuid.h>
+#include <arch/x86/ctrl_regs.h>
+#include <inttypes.h>
 
-// Return NULL: error
-uint64_t *create_table(uint64_t *parent, uint64_t vaddr, int level) {
-	if (parent == NULL) {
-		return NULL;
+
+#define ADDRESS_MASK 0x000FFFFFFFFFF000
+
+// Bitmap of supported features, the flags parameter
+// of Arc_MapPageVMM, for instance are logically ANDed
+// with this. If a particular feature is not supported, that
+// flag will be turned off, ensuring that code complies with
+// hardware
+uint32_t feature_set = 0;
+
+uint64_t *pml4 = NULL;
+
+int Arc_MapPageVMM(uint64_t physical, uint64_t virtual, uint32_t flags) {
+	int offset = virtual & 0xFFF; // Offset into the page
+	int pt_e = (virtual >> 12) & 0x1FF; // Index of the page in the page table
+	int pd_e = (virtual >> 21) & 0x1FF; // Index of the page table in the page directory
+	int pdp_e = (virtual >> 30) & 0x1FF; // Index of the page directory in the page directory pointer table
+	int pml4_e = (virtual >> 39) & 0x1FF; // Index of the page directory pointer table in the PML4
+
+
+	uint64_t *pdp = (uint64_t *)(pml4[pml4_e] & ADDRESS_MASK);
+	if ((pml4[pml4_e] & 0b11) == 0) {
+		// No such entry
+		pdp = Arc_AllocPMM();
+
+		if (pdp == NULL) {
+			ARC_DEBUG(ERR, "Failed to allocate page directory pointer for 0x%"PRIx64" -> 0x%"PRIx64"\n", physical, virtual);
+			ARC_HANG;
+		}
+
+		pml4[pml4_e] = (((uint64_t)pdp) & ADDRESS_MASK) | 0b11;
 	}
 
-	int shift = ((level - 1) * 9) + 12;
+	uint64_t *pd = (uint64_t *)(pdp[pdp_e] & ADDRESS_MASK);
+	if ((pdp[pdp_e] & 0b11) == 0) {
+		pd = Arc_AllocPMM();
 
-	if ((parent[(vaddr >> shift) & 0x1FF] & 1) == 1) {
-		// Entry already exists
-		return (uint64_t *)((uint32_t)(parent[(vaddr >> shift) & 0x1FF] & 0x0000FFFFFFFFF000));
+		if (pd == NULL) {
+			ARC_DEBUG(ERR, "Failed to allocate page directory for 0x%"PRIx64" -> 0x%"PRIx64"\n", physical, virtual);
+			ARC_HANG;
+		}
+
+		pdp[pdp_e] = (((uint64_t)pd) & ADDRESS_MASK) | 0b11;
+
+		if ((flags & ARC_VMM_NO_EXEC) != 0) {
+			// Set NX bit
+			pdp[pdp_e] |= (uint64_t)1 << 63;
+		}
+	
+		if ((flags & ARC_VMM_1GIB) != 0) {
+			// Set PS to 1 to enable 1 GiB pages
+			pdp[pdp_e] |= 1 << 7;
+
+			return 0;
+		}
 	}
 
-	uint64_t *table = (uint64_t *)Arc_ListAlloc(&physical_mem);
+	uint64_t *pt = (uint64_t *)(pd[pd_e] & ADDRESS_MASK);
+	if ((pd[pd_e] & 0b11) == 0) {
+		pt = Arc_AllocPMM();
 
-	if (table == NULL) {
-		ARC_DEBUG(ERR, "Failed to allocate new PML%d table for virtual address 0x%"PRIx64"\n", level, vaddr)
-		return NULL;
+		if (pt == NULL) {
+			ARC_DEBUG(ERR, "Failed to allocate page table for 0x%"PRIx64" -> 0x%"PRIx64"\n", physical, virtual);
+			ARC_HANG;
+		}
+
+		pd[pd_e] = (((uint64_t)pt) & ADDRESS_MASK) | 0b11;
+
+		if ((flags & ARC_VMM_NO_EXEC) != 0) {
+			// Set NX bit
+			pd[pd_e] |= (uint64_t)1 << 63;
+		}
+
+		if ((flags & ARC_VMM_2MIB) != 0) {
+			pd[pd_e] |= 1 << 7;
+			return 0;
+		}
 	}
 
-	memset(table, 0, 0x1000);
+	uint64_t *page = (uint64_t *)(pd[pd_e] & ADDRESS_MASK);
+	if ((pt[pt_e] & 0b11) == 0) {
+		pt[pt_e] = (physical & ADDRESS_MASK) | 0b11;
 
-	parent[(vaddr >> shift) & 0x1FF] = (uintptr_t)table | 3;
-	return table;
+		if ((flags & ARC_VMM_NO_EXEC) != 0) {
+			pt[pt_e] |= (uint64_t)1 << 63;
+		}
+	}
+
+	return 0;
 }
 
-// Return PML4: success
-// Return NULL: failure
-uint64_t *map_page(uint64_t *pml4, uint64_t vaddr, uint64_t paddr, int overwrite) {
+int Arc_InitVMM() {
+	ARC_DEBUG(INFO, "Initializing VMM\n");
+
+	pml4 = Arc_AllocPMM();
+
 	if (pml4 == NULL) {
-		pml4 = (uint64_t *)Arc_ListAlloc(&physical_mem);
-		memset(pml4, 0, 0x1000);
+		ARC_DEBUG(ERR, "Failed to allocate a page for PML4\n");
+		return -1;
 	}
 
-	// TODO: Check that the sign extension is correct
+	uint32_t eax, ebx, ecx, edx;
+	__cpuid(0x80000001, eax, ebx, ecx, edx);
 
-	paddr &= 0x0000FFFFFFFFF000;
-	vaddr &= 0x0000FFFFFFFFF000;
-
-	int err = 0;
-
-	uint64_t *pml3;
-	uint64_t *pml2;
-	uint64_t *pml1;
-
-	err += (pml3 = create_table(pml4, vaddr, 4)) == NULL;
-	err += (pml2 = create_table(pml3, vaddr, 3)) == NULL;
-	err += (pml1 = create_table(pml2, vaddr, 2)) == NULL;
-
-	if (err > 0) {
-		// One or more of the pointers are NULL, can't continue
-		ARC_DEBUG(ERR, "One or more errors encountered while getting / creating PML3, PML2, and PML1 tables\n")
-		return NULL;
+	// Check for 1 GiB pages
+	if (((edx >> 26) & 1) == 1) {
+		ARC_DEBUG(INFO, "1 GiB pages supported\n");
+		feature_set |= ARC_VMM_1GIB;
 	}
 
-	if ((pml4[(vaddr >> 39) & 0x1FF] & 1) == 0) {
-		pml4[(vaddr >> 39) & 0x1FF] = ((uintptr_t)pml3) | 3;
+	// Check for NX
+ 	if (((edx >> 20) & 1) == 1) {
+		ARC_DEBUG(INFO, "NX bit supported\n");
+		feature_set |= ARC_VMM_NO_EXEC;
+		// Enable in IA32_EFER
+		uint64_t efer = _x86_RDMSR(0xC0000080);
+		efer |= 1 << 11;
+		_x86_WRMSR(0xC0000080, efer);
 	}
 
-	if ((pml3[(vaddr >> 30) & 0x1FF] & 1) == 0) {
-		pml3[(vaddr >> 30) & 0x1FF] = ((uintptr_t)pml2) | 3;
-	}
+	ARC_DEBUG(INFO, "Initialized VMM\n");
 
-	if ((pml2[(vaddr >> 21) & 0x1FF] & 1) == 0) {
-		pml2[(vaddr >> 21) & 0x1FF] = ((uintptr_t)pml1) | 3;
-	}
-
-	if ((pml1[(vaddr >> 12) & 0x1FF] & 1) == 1 && !overwrite) {
-		// Cannot overwrite already existing entry
-		ARC_DEBUG(ERR, "Cannot overwrite 0x%"PRIx64":0x%"PRIx64"\n", vaddr, paddr)
-		return NULL;
-	}
-
-	pml1[(vaddr >> 12) & 0x1FF] = paddr | 3;
-
-	return pml4;
+	return 0;
 }
