@@ -34,6 +34,7 @@
 #ifdef ARC_DEBUG_ENABLE
 
 #include <interface/printf.h>
+#include <interface/terminal.h>
 
 #define ARC_DEBUG_NAME_STR "[BOOTSTRAP "__FILE__":%d]"
 #define ARC_DEBUG_NAME_SEP_STR " : "
@@ -42,9 +43,9 @@
 #define ARC_DEBUG_ERR_STR  "[ERROR]"
 
 #define ARC_DEBUG(__level__, ...) ARC_DEBUG_##__level__(__VA_ARGS__)
-#define ARC_DEBUG_INFO(...) printf(ARC_DEBUG_INFO_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
-#define ARC_DEBUG_WARN(...) printf(ARC_DEBUG_WARN_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
-#define ARC_DEBUG_ERR(...)  printf(ARC_DEBUG_ERR_STR  ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
+#define ARC_DEBUG_INFO(...) Arc_TermSetFG(0xFFFFFFFF); printf(ARC_DEBUG_INFO_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
+#define ARC_DEBUG_WARN(...) Arc_TermSetFG(0x00FFFF00); printf(ARC_DEBUG_WARN_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
+#define ARC_DEBUG_ERR(...)  Arc_TermSetFG(0x00FF0000); printf(ARC_DEBUG_ERR_STR  ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
 
 #else
 

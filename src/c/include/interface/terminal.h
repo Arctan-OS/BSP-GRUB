@@ -27,7 +27,10 @@
 #ifndef ARC_INTERFACE_TERMINAL_H
 #define ARC_INTERFACE_TERMINAL_H
 
+#include <stdint.h>
+
 void Arc_SetTerm(void *address, int w, int h, int bpp);
 void Arc_TermPutChar(char c);
+void Arc_TermSetFG(uint32_t color);
 
 #endif

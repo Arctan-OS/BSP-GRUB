@@ -31,16 +31,22 @@
 #include <mm/freelist.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 // Allocate one object in given list
 // Return: non-NULL = success
 void *Arc_ListAlloc(struct ARC_FreelistMeta *meta) {
 	Arc_MutexLock(&meta->mutex);
 
+	while (meta->free_objects < 1 && meta->next != NULL) {
+		Arc_MutexLock(&meta->next->mutex);
+		Arc_MutexUnlock(&meta->mutex);
+		meta = meta->next;
+	}
+
 	// Get address, mark as used
 	void *address = (void *)meta->head;
 	meta->head = meta->head->next;
-
 	meta->free_objects--;
 
 	Arc_MutexUnlock(&meta->mutex);
@@ -50,6 +56,8 @@ void *Arc_ListAlloc(struct ARC_FreelistMeta *meta) {
 
 void *Arc_ListContiguousAlloc(struct ARC_FreelistMeta *meta, uint64_t objects) {
 	while (meta->free_objects < objects && meta->next != NULL) {
+		Arc_MutexLock(&meta->next->mutex);
+		Arc_MutexUnlock(&meta->mutex);
 		meta = meta->next;
 	}
 
@@ -58,15 +66,13 @@ void *Arc_ListContiguousAlloc(struct ARC_FreelistMeta *meta, uint64_t objects) {
 		return NULL;
 	}
 
-	Arc_MutexLock(&meta->mutex);
-
 	struct ARC_FreelistMeta to_free = { 0 };
 	to_free.object_size = meta->object_size;
 	to_free.base = meta->base;
 	to_free.ciel = meta->ciel;
 
 	// Number of objects currently allocated
-	int object_count = 0;
+	uint64_t object_count = 0;
 	// Limit so we don't try to allocate all of memory
 	int fails = 0;
 	// Object allocated from previous iteration
@@ -102,6 +108,7 @@ void *Arc_ListContiguousAlloc(struct ARC_FreelistMeta *meta, uint64_t objects) {
 		}
 
 		if (fails >= 16) {
+			ARC_DEBUG(ERR, "Failed more than 16 times allocating contiguous section\n");
 			break;
 		}
 
@@ -136,15 +143,27 @@ void *Arc_ListContiguousAlloc(struct ARC_FreelistMeta *meta, uint64_t objects) {
 // Free given address in given list
 // Return: non-NULL = success
 void *Arc_ListFree(struct ARC_FreelistMeta *meta, void *address) {
-	Arc_MutexLock(&meta->mutex);
-
-	struct ARC_FreelistNode *node = (struct ARC_FreelistNode *)address;
-
-	if (node == NULL || (node < meta->base || node > meta->ciel)) {
-		// Node doesn't exist, is below the freelist, or is above, return NULL
-		Arc_MutexUnlock(&meta->mutex);
+	if (meta == NULL || address == NULL) {
+		ARC_DEBUG(ERR, "Failed to free %p in %p\n", address, meta);
 		return NULL;
 	}
+
+	Arc_MutexLock(&meta->mutex);
+
+	while ((void *)meta->base > address && meta->next != NULL) {
+		Arc_MutexLock(&meta->next->mutex);
+		Arc_MutexUnlock(&meta->mutex);
+		meta = meta->next;
+	}
+
+	if ((void *)meta->ciel < address && meta->next == NULL) {
+		ARC_DEBUG(ERR, "Could not find %p in given list\n", address);
+		Arc_MutexUnlock(&meta->mutex);
+
+		return NULL;
+	}
+
+	struct ARC_FreelistNode *node = (struct ARC_FreelistNode *)address;
 
 	// Mark as free
 	node->next = meta->head;
@@ -158,10 +177,32 @@ void *Arc_ListFree(struct ARC_FreelistMeta *meta, void *address) {
 }
 
 void *Arc_ListContiguousFree(struct ARC_FreelistMeta *meta, void *address, uint64_t objects) {
+	if (meta == NULL || address == NULL) {
+		ARC_DEBUG(ERR, "Failed to free %p in %p\n", address, meta);
+		return NULL;
+	}
+
 	Arc_MutexLock(&meta->mutex);
 
-	for (int i = objects - 1; i >= 0; i--) {
-		Arc_ListFree(meta, address + (i * meta->object_size));
+	while ((void *)meta->base > address && meta->next != NULL) {
+		Arc_MutexLock(&meta->next->mutex);
+		Arc_MutexUnlock(&meta->mutex);
+		meta = meta->next;
+	}
+
+	if ((void *)meta->ciel < address && meta->next == NULL) {
+		ARC_DEBUG(ERR, "Could not find %p in given list\n", address);
+		Arc_MutexUnlock(&meta->mutex);
+
+		return NULL;
+	}
+
+	for (uint64_t i = 0; i < objects; i++) {
+		struct ARC_FreelistNode *node = (struct ARC_FreelistNode *)(address + (i * meta->object_size));
+
+		// Mark as free
+		node->next = meta->head;
+		meta->head = node;
 	}
 
 	meta->free_objects += objects;
@@ -203,8 +244,8 @@ int Arc_ListLink(struct ARC_FreelistMeta *A, struct ARC_FreelistMeta *B) {
 	return 0;
 }
 
-struct ARC_FreelistMeta *Arc_InitializeFreelist(void *_base, void *_ciel, uint64_t _object_size) {
-	if (_base == NULL || _ciel == NULL || _object_size == 0) {
+struct ARC_FreelistMeta *Arc_InitializeFreelist(uint64_t _base, uint64_t _ciel, uint64_t _object_size) {
+	if (_base > _ciel || _object_size == 0) {
 		return NULL;
 	}
 
@@ -224,7 +265,9 @@ struct ARC_FreelistMeta *Arc_InitializeFreelist(void *_base, void *_ciel, uint64
 	meta->head = base;
 	meta->ciel = ciel;
 	meta->object_size = _object_size;
-	meta->free_objects = ((uint64_t)ciel - (uint64_t)base) / _object_size;
+	meta->free_objects = (_ciel - _base) / _object_size;
+
+//	ARC_DEBUG(INFO, "%"PRIx64" - %"PRIx64" = %"PRIx64", / %"PRId64" = %"PRId64"\n", _ciel, _base, _ciel - _base, _object_size, meta->free_objects);
 
 	// Initialize the linked list
 	for (; _base < _ciel; _base += _object_size) {

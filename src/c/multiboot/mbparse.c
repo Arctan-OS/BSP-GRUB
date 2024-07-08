@@ -44,8 +44,8 @@ struct mb2_base_tag {
 	uint32_t size;
 }__attribute__((packed));
 
-struct ARC_MMap arc_mmap[512]; // This is a lot of memory map entries, if you have
-			       // a system that has more than this then good luck I guess
+struct ARC_MMap arc_mmap[512] = { 0 }; // This is a lot of memory map entries, if you have
+			               // a system that has more than this then good luck I guess
 /**
  * Converts a MB2 memory type to ARC type
  */
@@ -123,10 +123,15 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 			ARC_DEBUG(INFO, "\tEnd: 0x%"PRIx32" (0x%"PRIx32")\n", info->mod_end, last_address);
 			ARC_DEBUG(INFO, "\tCommand: %s\n", info->cmdline);
 
+			// Check if the last address (page aligned) is higher
+			// than the current end of the bootstrapper, so it can
+			// be excluded from the ARC_MMap
 			if (last_address > bootstrap_end_phys) {
 				bootstrap_end_phys = last_address;
 			}
 
+			// Check for important modules (kernel + initramfs) and set
+			// proper variables
 			if (strcmp(info->cmdline, "arctan-module.kernel.elf") == 0) {
 				ARC_DEBUG(INFO, "\tFound kernel!\n");
 				_boot_meta.kernel_elf = (uint64_t)info->mod_start;
@@ -136,31 +141,38 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 				_boot_meta.initramfs_size = (uint64_t)(info->mod_end - info->mod_start);
 			}
 
-
 			break;
 		}
 
 		case MULTIBOOT_TAG_TYPE_ELF_SECTIONS: {
 			// TODO: Could probably use this to get a more accurate bootstrap_end_phys
+			struct multiboot_tag_elf_sections *info = (struct multiboot_tag_elf_sections *)tag;
 
 			break;
 		}
 
 		case MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR: {
-			// TODO: Could be used to get more accurate bootstrap_end_phys
+			// The image is relocatable, check for the load base
+			// and calculate the last address used by bootstrap.elf
 			struct multiboot_tag_load_base_addr *info = (struct multiboot_tag_load_base_addr *)tag;
-
 
 			bsp_image_base = (uint64_t)info->load_base_addr;
 			bsp_image_ciel = (uint64_t)bsp_image_base + ((uint64_t)&__BOOTSTRAP_END__ - (uint64_t)&__BOOTSTRAP_START__);
+			uint64_t aligned = ALIGN(bsp_image_ciel, PAGE_SIZE);
 
 			ARC_DEBUG(INFO, "Base address:\n");
 			ARC_DEBUG(INFO, "\tLoaded at: 0x%"PRIx32"\n", info->load_base_addr);
-			ARC_DEBUG(INFO, "\tLast address: 0x%"PRIx32" (0x%"PRIx32")\n", bsp_image_ciel, ALIGN(bsp_image_ciel, PAGE_SIZE));
+			ARC_DEBUG(INFO, "\tLast address: 0x%"PRIx64" (0x%"PRIx64")\n", bsp_image_ciel, aligned);
 
 			if (ALIGN(bsp_image_ciel, PAGE_SIZE) > bootstrap_end_phys) {
-				bootstrap_end_phys = ALIGN(bsp_image_ciel, PAGE_SIZE);
+				bootstrap_end_phys = aligned;
 			}
+
+			break;
+		}
+
+		case MULTIBOOT_TAG_TYPE_END: {
+			ARC_DEBUG(INFO, "Parsed primary tags\n");
 
 			break;
 		}
@@ -169,6 +181,8 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 		offset += ALIGN(tag->size, 8);
 	}
 
+	// After parsing primary information, parse
+	// secondary information
 	offset = 8;
 
 	ARC_DEBUG(INFO, "Bootstrap physical end: 0x%"PRIx32"\n", bootstrap_end_phys);
@@ -180,6 +194,7 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 
 		switch (tag->type) {
 		case MULTIBOOT_TAG_TYPE_BOOT_LOADER_NAME: {
+			// Cosmetic
 			struct multiboot_tag_string *info = (struct multiboot_tag_string *)tag;
 
 			ARC_DEBUG(INFO, "Bootloader: %s\n", info->string);
@@ -187,20 +202,10 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 			break;
 		}
 		
-		case MULTIBOOT_TAG_TYPE_CMDLINE: {
-			struct multiboot_tag_string *info = (struct multiboot_tag_string *)tag;
-
-			ARC_DEBUG(INFO, "Command line arguments: %s\n", info->string);
-
-			break;
-		}
-
-		case MULTIBOOT_TAG_TYPE_FRAMEBUFFER: {
-			ARC_DEBUG(INFO, "Framebuffer already found\n");
-			break;
-		}
 
 		case MULTIBOOT_TAG_TYPE_MMAP: {
+			// BIOS memory map, grab it print it, and reconstruct it into
+			// the ARC_MMap
 			struct multiboot_tag_mmap *info = (struct multiboot_tag_mmap *)tag;
 			uint32_t entries = (info->size - sizeof(struct multiboot_tag_mmap)) / info->entry_size;
 
@@ -219,6 +224,11 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 			for (uint32_t i = 0; i < entries; i++) {
 				struct multiboot_mmap_entry entry = info->entries[i];
 				ARC_DEBUG(INFO, "\t%d : 0x%"PRIx64" -> 0x%"PRIx64" (0x%"PRIx64" bytes) | %s (%d)\n", i, entry.addr, entry.addr + entry.len, entry.len, names[entry.type], entry.type);
+
+				// Update highest physical address
+				if (entry.addr > _boot_meta.highest_address) {
+					_boot_meta.highest_address = (uint64_t)(entry.addr + entry.len);
+				}
 
 				int overlap = 0;
 
@@ -268,15 +278,11 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 					}
 				}
 
+				// Add entry
 				arc_mmap[arc_mmap_entry].base = base;
 				arc_mmap[arc_mmap_entry].len = len;
 				arc_mmap[arc_mmap_entry].type = type;
 				arc_mmap_entry++;
-
-				// Update highest physical address
-				if (entry.addr > _boot_meta.highest_address) {
-					_boot_meta.highest_address = (uint64_t)(entry.addr + entry.len);
-				}
 			}
 
 			_boot_meta.arc_mmap = (uint64_t)&arc_mmap;
@@ -289,7 +295,8 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 		}
 
 		case MULTIBOOT_TAG_TYPE_EFI_MMAP: {
-			ARC_DEBUG(INFO, "Found EFI MMap\n");
+			ARC_DEBUG(WARN, "Found EFI MMap (implement)\n");
+			// TODO: Implement EFI mmap parsing
 
 			break;
 		}
@@ -319,12 +326,34 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 
 			break;
 		}
-		
+
+		case MULTIBOOT_TAG_TYPE_APM: {
+			ARC_DEBUG(WARN, "Found APM (implement)\n");
+
+			break;
+		}
+
+		case MULTIBOOT_TAG_TYPE_BOOTDEV: {
+			ARC_DEBUG(WARN, "Found bootdev (implement)\n");
+
+			break;
+		}
+
+		case MULTIBOOT_TAG_TYPE_VBE: {
+			ARC_DEBUG(WARN, "Found VBE (implement)\n");
+
+			break;
+		}
+
+		// Already handled
+		case MULTIBOOT_TAG_TYPE_ELF_SECTIONS: { break; }
 		case MULTIBOOT_TAG_TYPE_MODULE: { break; }
 		case MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR: { break; }
+		case MULTIBOOT_TAG_TYPE_CMDLINE: { break; }
+		case MULTIBOOT_TAG_TYPE_FRAMEBUFFER: { break; }
 
 		case MULTIBOOT_TAG_TYPE_END: {
-			ARC_DEBUG(INFO, "Parsed all tags\n");
+			ARC_DEBUG(INFO, "Parsed secondary tags\n");
 
 			break;
 		}

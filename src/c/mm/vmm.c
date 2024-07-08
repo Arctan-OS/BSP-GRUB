@@ -51,7 +51,6 @@ int Arc_MapPageVMM(uint64_t physical, uint64_t virtual, uint32_t flags) {
 	int pdp_e = (virtual >> 30) & 0x1FF; // Index of the page directory in the page directory pointer table
 	int pml4_e = (virtual >> 39) & 0x1FF; // Index of the page directory pointer table in the PML4
 
-
 	uint64_t *pdp = (uint64_t *)(pml4[pml4_e] & ADDRESS_MASK);
 	if ((pml4[pml4_e] & 0b11) == 0) {
 		// No such entry

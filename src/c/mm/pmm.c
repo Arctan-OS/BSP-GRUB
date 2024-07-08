@@ -30,6 +30,7 @@
 #include <mm/pmm.h>
 #include <global.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 struct ARC_FreelistMeta *pmm_meta = NULL;
 
@@ -59,6 +60,8 @@ int Arc_InitPMM() {
 
 	ARC_DEBUG(INFO, "Initializing base freelist page frame allocator (MMap: %p)\n", mmap);
 
+	uint64_t total_free = 0;
+
 	for (int i = 0; i < _boot_meta.arc_mmap_len; i++) {
 		if (mmap[i].type != ARC_MEMORY_AVAILABLE) {
 			continue;
@@ -69,10 +72,10 @@ int Arc_InitPMM() {
 			continue;
 		}
 
-		void *base = (void *)mmap[i].base;
-		void *ciel = (void *)(mmap[i].base + mmap[i].len);
+		uint64_t base = mmap[i].base;
+		uint64_t ciel = mmap[i].base + mmap[i].len;
 
-		ARC_DEBUG(INFO, "\tFound available entry %d, initializing a freelist\n", i);
+		ARC_DEBUG(INFO, "\tFound available entry %d (0x%"PRIx64" -> 0x%"PRIx64"), initializing a freelist\n", i, base, ciel);
 
 		void *list = Arc_InitializeFreelist(base, ciel, PAGE_SIZE);
 
@@ -80,22 +83,24 @@ int Arc_InitPMM() {
 
 		if (pmm_meta == NULL) {
 			// Create primary list
-			ARC_DEBUG(INFO, "Established primary list\n");
+			ARC_DEBUG(INFO, "\tEstablished primary list\n");
 			pmm_meta = list;
 		} else {
-			ARC_DEBUG(INFO, "Linking newly made list into primary\n")
+			ARC_DEBUG(INFO, "\tLinking newly made list into primary\n")
 			// Link lists
 			ret = Arc_ListLink(pmm_meta, list);
 		}
 
 		if (ret != 0) {
-			ARC_DEBUG(INFO, "Failed to link lists (%p, %p), code: %d\n", pmm_meta, list, ret);
+			ARC_DEBUG(ERR, "\nFailed to link lists (%p, %p), code: %d\n", pmm_meta, list, ret);
 		}
+
+		total_free += mmap[i].len;
 	}
 
 	_boot_meta.pmm_state = (uint64_t)pmm_meta;
 
-	ARC_DEBUG(INFO, "Successfully initialized PMM\n");
+	ARC_DEBUG(INFO, "Successfully initialized PMM, 0x%"PRIx64" bytes free\n", total_free);
 
 	return 0;
 }

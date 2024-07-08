@@ -34,12 +34,32 @@
 #include <multiboot/mbparse.h>
 #include <inttypes.h>
 #include <elf/elf.h>
+#include <multiboot/multiboot2.h>
 
 uint64_t kernel_entry = 0;
 uint64_t bsp_image_base = 0;
 uint64_t bsp_image_ciel = 0;
 
+/*
+** Bugs:
+**   - PMM allocator seems to get corrupted on real hardware
+**     for some reason when loaded on real hardware (specifically
+**     at 1MB).
+**   - Also at 1MB adding print statements into the freelist implementation
+**     causes the kernel to not load in an emulator
+**   - Above 2 bugs are probably as a result of the freelist initialization
+**     or the allocation of the freelist overwriting some data in memory key
+**     to the function of the bootstrapper
+ */
+
+
 int helper(uint8_t *mb2i, uint32_t signature) {
+	if (signature != MULTIBOOT2_BOOTLOADER_MAGIC) {
+		ARC_DEBUG(ERR, "Not booted with Multiboot2!\n");
+		ARC_HANG;
+	}
+
+	// Set the HHDM virtual address
 	_boot_meta.hhdm_vaddr = 0xFFFFC00000000000;
 
 	// Setup GDT
@@ -47,13 +67,7 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 	// Setup IDT
 	Arc_InstallIDT();
 
-	// Parse multiboot header
-	//   This stage will also construct the boostrap meta that
-	//   is passed to the kernel
-	//   This parsing will also construct a ARC_MMap structure
-	//   which will hold non-overlapping entries that will be used
-	//   by the PMM and later passed to the kernel. Entries which
-	//   preceed the end of the bootstrapper will be marked as "Bootstrapper"
+	// Parse all multiboot2 boot information
 	Arc_ParseMB2I(mb2i);
 
 	// Initialize freelist page frame allocator
@@ -61,16 +75,17 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 	//   all page frames below UINT32_MAX are allocatable
 	Arc_InitPMM();
 
-	// Initialize HHDM
-	//   This will simply put together an HHDM, try to detect large
-	//   pages (2 MiB or 1 GiB) in order to save space within
-	//   the allocator
+	// Initialize VMM
 	Arc_InitVMM();
 
 	ARC_DEBUG(INFO, "Constructing HHDM at 0x%"PRIx64":\n", _boot_meta.hhdm_vaddr);
 
 	struct ARC_MMap *mmap = (struct ARC_MMap *)_boot_meta.arc_mmap;
 
+	// Put together HHDM so kernel can access all physical memory
+	// later on
+	// TODO: Try to detect large pages (2 MiB or 1 GiB)
+	//       in order to save space within the allocator
 	for (uint32_t i = 0; i < _boot_meta.arc_mmap_len; i++) {
 		uint64_t phys_base = mmap[i].base;
 		uint64_t virt_base = phys_base + _boot_meta.hhdm_vaddr;
@@ -87,7 +102,8 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 
 	ARC_DEBUG(INFO, "Identity mapping bootstrapper:\n")
 
-	// Map bootstrapper image into memory
+	// Map bootstrapper image into memory so a page fault is not immediately
+	// thrown after enabling paging
 	for (uint64_t phys = bsp_image_base; phys <= bsp_image_ciel; phys += PAGE_SIZE) {
 		ARC_DEBUG(INFO, "\tIdentity mapping 4 KiB page: 0x%"PRIx64"\n", phys);
 

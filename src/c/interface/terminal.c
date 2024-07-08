@@ -36,7 +36,8 @@ int term_h = 0;
 int term_bpp = 0;
 int term_x = 0;
 int term_y = 0;
-	
+uint32_t fg = 0xFFFFFF;
+        	
 void Arc_SetTerm(void *address, int w, int h, int bpp) {
         term_address = address;
         term_w = w;
@@ -54,10 +55,12 @@ void Arc_TermPutChar(char c) {
                 term_x = 0;
         }
 
-        if (term_y >= term_h / 8) {
+        if (term_y >= term_h / 8 - 5) {
                 term_y--;
                 term_x = 0;
 
+                memset(term_address, 0, term_w * term_h * (term_bpp / 8));
+        
 		memcpy(term_address, term_address + term_w * 8 * (term_bpp / 8), term_w * (term_h - 1) * (term_bpp / 8));
 		memset(term_address + term_w * (term_h) * (term_bpp / 8), 0, term_w * 8 * (term_bpp / 8));
         }
@@ -87,7 +90,7 @@ void Arc_TermPutChar(char c) {
                         int rx = 0;
                         for (int j = 8 - 1; j >= 0; j--) {
                                 if (((character_rom[c * 8 + i] >> j) & 1) == 1 && c != 0) {
-                                        *((uint32_t *)term_address + (i + sy) * term_w + (sx + rx)) = 0xFFFFFFFF;
+                                        *((uint32_t *)term_address + (i + sy) * term_w + (sx + rx)) = fg;
                                 }
                                 rx++;
                         }
@@ -98,4 +101,8 @@ void Arc_TermPutChar(char c) {
                 break;
         }
         }
+}
+
+void Arc_TermSetFG(uint32_t color) {
+        fg = color;
 }
