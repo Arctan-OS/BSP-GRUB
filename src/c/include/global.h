@@ -64,5 +64,6 @@ extern void *term_address;
 extern int term_w;
 extern int term_h;
 extern int term_bpp;
+extern struct ARC_FreelistMeta *pmm_meta;
 
 #endif

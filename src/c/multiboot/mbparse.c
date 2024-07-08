@@ -173,7 +173,7 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 
 		case MULTIBOOT_TAG_TYPE_END: {
 			ARC_DEBUG(INFO, "Parsed primary tags\n");
-
+		
 			break;
 		}
 		}
@@ -211,19 +211,10 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 
 			ARC_DEBUG(INFO, "Found MMap (%d, %d entries)\n", info->entry_version, entries);
 
-                        const char *names[] = {
-                                [MULTIBOOT_MEMORY_AVAILABLE] = "Available",
-                                [MULTIBOOT_MEMORY_ACPI_RECLAIMABLE] = "ACPI Reclaimable",
-                                [MULTIBOOT_MEMORY_BADRAM] = "Bad",
-                                [MULTIBOOT_MEMORY_NVS] = "NVS",
-                                [MULTIBOOT_MEMORY_RESERVED] = "Reserved"
-                        };
-
 			uint32_t arc_mmap_entry = 0;
 
 			for (uint32_t i = 0; i < entries; i++) {
 				struct multiboot_mmap_entry entry = info->entries[i];
-				ARC_DEBUG(INFO, "\t%d : 0x%"PRIx64" -> 0x%"PRIx64" (0x%"PRIx64" bytes) | %s (%d)\n", i, entry.addr, entry.addr + entry.len, entry.len, names[entry.type], entry.type);
 
 				// Update highest physical address
 				if (entry.addr > _boot_meta.highest_address) {
@@ -259,11 +250,11 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 					uint32_t _type = type;
 					type = ARC_MEMORY_BOOTSTRAP;
 
-					ARC_DEBUG(INFO, "\t\tEntry is below bootstrap end, marking as BOOTSTRAP\n");
+					ARC_DEBUG(INFO, "\tEntry %d is below bootstrap end, marking as BOOTSTRAP\n", i);
 
 					if (bootstrap_end_phys < base + entry.len)  {
 						// Entry contains bootstrap end, split it
-						ARC_DEBUG(INFO, "\t\tEntry contains bootstrap end, splitting\n");
+						ARC_DEBUG(INFO, "\tEntry %d contains bootstrap end, splitting\n", i);
 
 						uint64_t delta = bootstrap_end_phys - base;
 
@@ -288,8 +279,22 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 			_boot_meta.arc_mmap = (uint64_t)&arc_mmap;
 			_boot_meta.arc_mmap_len = arc_mmap_entry;
 
+			const char *names[] = {
+                                [ARC_MEMORY_AVAILABLE] = "Available",
+                                [ARC_MEMORY_ACPI_RECLAIMABLE] = "ACPI Reclaimable",
+                                [ARC_MEMORY_BADRAM] = "Bad",
+                                [ARC_MEMORY_NVS] = "NVS",
+                                [ARC_MEMORY_RESERVED] = "Reserved",
+				[ARC_MEMORY_BOOTSTRAP] = "Bootstrap"
+                        };
+
 			ARC_DEBUG(INFO, "Highest physical address: 0x%"PRIx64"\n", _boot_meta.highest_address);
 			ARC_DEBUG(INFO, "Arctan MMap: 0x%"PRIx64" (%d entries)\n", _boot_meta.arc_mmap, _boot_meta.arc_mmap_len);
+			for (uint32_t i = 0; i < _boot_meta.arc_mmap_len; i++) {
+				struct ARC_MMap entry = arc_mmap[i];
+				ARC_DEBUG(INFO, "\t%3d : 0x%016"PRIx64" -> 0x%016"PRIx64" (0x%016"PRIx64" bytes) | %s (%d)\n", i, entry.base, entry.base + entry.len, entry.len, names[entry.type], entry.type);
+			}
+
 
 			break;
 		}

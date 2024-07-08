@@ -35,23 +35,11 @@
 #include <inttypes.h>
 #include <elf/elf.h>
 #include <multiboot/multiboot2.h>
+#include <mm/freelist.h>
 
 uint64_t kernel_entry = 0;
 uint64_t bsp_image_base = 0;
 uint64_t bsp_image_ciel = 0;
-
-/*
-** Bugs:
-**   - PMM allocator seems to get corrupted on real hardware
-**     for some reason when loaded on real hardware (specifically
-**     at 1MB).
-**   - Also at 1MB adding print statements into the freelist implementation
-**     causes the kernel to not load in an emulator
-**   - Above 2 bugs are probably as a result of the freelist initialization
-**     or the allocation of the freelist overwriting some data in memory key
-**     to the function of the bootstrapper
- */
-
 
 int helper(uint8_t *mb2i, uint32_t signature) {
 	if (signature != MULTIBOOT2_BOOTLOADER_MAGIC) {

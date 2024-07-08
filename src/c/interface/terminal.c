@@ -59,8 +59,6 @@ void Arc_TermPutChar(char c) {
                 term_y--;
                 term_x = 0;
 
-                memset(term_address, 0, term_w * term_h * (term_bpp / 8));
-        
 		memcpy(term_address, term_address + term_w * 8 * (term_bpp / 8), term_w * (term_h - 1) * (term_bpp / 8));
 		memset(term_address + term_w * (term_h) * (term_bpp / 8), 0, term_w * 8 * (term_bpp / 8));
         }

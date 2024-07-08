@@ -251,6 +251,8 @@ struct ARC_FreelistMeta *Arc_InitializeFreelist(uint64_t _base, uint64_t _ciel, 
 
 	struct ARC_FreelistMeta *meta = (struct ARC_FreelistMeta *)_base;
 
+	memset(meta, 0, sizeof(struct ARC_FreelistMeta));
+
 	Arc_MutexStaticInit(&meta->mutex);
 
 	// Number of objects to accomodate meta
@@ -267,15 +269,18 @@ struct ARC_FreelistMeta *Arc_InitializeFreelist(uint64_t _base, uint64_t _ciel, 
 	meta->object_size = _object_size;
 	meta->free_objects = (_ciel - _base) / _object_size;
 
-//	ARC_DEBUG(INFO, "%"PRIx64" - %"PRIx64" = %"PRIx64", / %"PRId64" = %"PRId64"\n", _ciel, _base, _ciel - _base, _object_size, meta->free_objects);
-
 	// Initialize the linked list
+	struct ARC_FreelistNode *current = NULL;
 	for (; _base < _ciel; _base += _object_size) {
-		struct ARC_FreelistNode *current = (struct ARC_FreelistNode *)_base;
+		current = (struct ARC_FreelistNode *)_base;
 		struct ARC_FreelistNode *next = (struct ARC_FreelistNode *)(_base + _object_size);
 
+		*(uint64_t *)current = 0;
 		current->next = next;
 	}
+
+	// Set last entry to point to NULL
+	*(uint64_t *)current = 0;
 
 	return meta;
 }

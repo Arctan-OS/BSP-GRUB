@@ -61,6 +61,7 @@ int Arc_MapPageVMM(uint64_t physical, uint64_t virtual, uint32_t flags) {
 			ARC_HANG;
 		}
 
+		memset(pdp, 0, PAGE_SIZE);
 		pml4[pml4_e] = (((uint64_t)pdp) & ADDRESS_MASK) | 0b11;
 	}
 
@@ -73,6 +74,7 @@ int Arc_MapPageVMM(uint64_t physical, uint64_t virtual, uint32_t flags) {
 			ARC_HANG;
 		}
 
+		memset(pd, 0, PAGE_SIZE);
 		pdp[pdp_e] = (((uint64_t)pd) & ADDRESS_MASK) | 0b11;
 
 		if ((flags & ARC_VMM_NO_EXEC) != 0) {
@@ -97,6 +99,7 @@ int Arc_MapPageVMM(uint64_t physical, uint64_t virtual, uint32_t flags) {
 			ARC_HANG;
 		}
 
+		memset(pt, 0, PAGE_SIZE);
 		pd[pd_e] = (((uint64_t)pt) & ADDRESS_MASK) | 0b11;
 
 		if ((flags & ARC_VMM_NO_EXEC) != 0) {
@@ -131,6 +134,8 @@ int Arc_InitVMM() {
 		ARC_DEBUG(ERR, "Failed to allocate a page for PML4\n");
 		return -1;
 	}
+
+	memset(pml4, 0, PAGE_SIZE);
 
 	uint32_t eax, ebx, ecx, edx;
 	__cpuid(0x80000001, eax, ebx, ecx, edx);

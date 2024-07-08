@@ -83,16 +83,16 @@ int Arc_InitPMM() {
 
 		if (pmm_meta == NULL) {
 			// Create primary list
-			ARC_DEBUG(INFO, "\tEstablished primary list\n");
+			ARC_DEBUG(INFO, "\t\tEstablished primary list\n");
 			pmm_meta = list;
 		} else {
-			ARC_DEBUG(INFO, "\tLinking newly made list into primary\n")
+			ARC_DEBUG(INFO, "\t\tLinking newly made list into primary\n")
 			// Link lists
 			ret = Arc_ListLink(pmm_meta, list);
 		}
 
 		if (ret != 0) {
-			ARC_DEBUG(ERR, "\nFailed to link lists (%p, %p), code: %d\n", pmm_meta, list, ret);
+			ARC_DEBUG(ERR, "\t\tFailed to link lists (%p, %p), code: %d\n", pmm_meta, list, ret);
 		}
 
 		total_free += mmap[i].len;
