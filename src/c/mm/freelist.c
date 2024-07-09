@@ -269,14 +269,13 @@ struct ARC_FreelistMeta *Arc_InitializeFreelist(uint64_t _base, uint64_t _ciel, 
 	meta->object_size = _object_size;
 	meta->free_objects = (_ciel - _base) / _object_size;
 
+	ARC_DEBUG(INFO, "Creating freelist from 0x%"PRIx64" (%p) to 0x%"PRIx64" (%p)\n", (uint64_t)_base, base, (uint64_t)_ciel, ciel);
+
 	// Initialize the linked list
 	struct ARC_FreelistNode *current = NULL;
 	for (; _base < _ciel; _base += _object_size) {
 		current = (struct ARC_FreelistNode *)_base;
-		struct ARC_FreelistNode *next = (struct ARC_FreelistNode *)(_base + _object_size);
-
-		*(uint64_t *)current = 0;
-		current->next = next;
+		*(uint64_t *)current = _base + _object_size;
 	}
 
 	// Set last entry to point to NULL

@@ -61,6 +61,8 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 	// Initialize freelist page frame allocator
 	//   Goal of this allocator is to make it so
 	//   all page frames below UINT32_MAX are allocatable
+	// TODO: Use a simpler, more coarse, allocator like a buddy
+	//       allocator
 	Arc_InitPMM();
 
 	// Initialize VMM
@@ -104,6 +106,15 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 	// Parse the Kernel ELF file and map it into memory using 4 KiB pages
 	// and set kernel_entry to the virtual address of where the kernel is
 	kernel_entry = Arc_LoadELF((uint8_t *)_boot_meta.kernel_elf);
+
+	uint64_t term_addr = ((uint64_t)term_address) & UINT32_MAX;
+
+	for (uint64_t page = 0; page < term_w * term_h * (term_bpp / 4); page += PAGE_SIZE) {
+		if (Arc_MapPageVMM(term_addr + page, term_addr + _boot_meta.hhdm_vaddr + page, ARC_VMM_NO_EXEC) != 0) {
+			ARC_DEBUG(ERR, "\tFailed to map framebuffer\n");
+		}
+	}
+
 
 	ARC_DEBUG(INFO, "Finished bootstrapping, returning to assembly to setup long mode and jump to kernel (0x%"PRIx64")\n", kernel_entry);
 

@@ -77,7 +77,12 @@ int Arc_InitPMM() {
 
 		ARC_DEBUG(INFO, "\tFound available entry %d (0x%"PRIx64" -> 0x%"PRIx64"), initializing a freelist\n", i, base, ciel);
 
-		void *list = Arc_InitializeFreelist(base, ciel, PAGE_SIZE);
+		// hhdm_vaddr can be added here as it only effects the upper 32-bits
+		// of each 64-bit value. This saves the kernel the step of converting
+		// the freelists that are initialized here to use HHDM addresses and
+		// still let's this code use the list as only the lower 32-bits are used
+		// by it
+		void *list = Arc_InitializeFreelist(base + _boot_meta.hhdm_vaddr, ciel + _boot_meta.hhdm_vaddr, PAGE_SIZE);
 
 		int ret = 0;
 
