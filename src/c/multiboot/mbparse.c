@@ -217,7 +217,7 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 				struct multiboot_mmap_entry entry = info->entries[i];
 
 				// Update highest physical address
-				if (entry.addr > _boot_meta.highest_address) {
+				if (entry.addr + entry.len > _boot_meta.highest_address) {
 					_boot_meta.highest_address = (uint64_t)(entry.addr + entry.len);
 				}
 
