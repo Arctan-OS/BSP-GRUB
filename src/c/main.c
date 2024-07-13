@@ -39,7 +39,7 @@
 
 uint64_t kernel_entry = 0;
 uint64_t bsp_image_base = 0;
-uint64_t bsp_image_ciel = 0;
+uint64_t bsp_image_ceil = 0;
 
 int helper(uint8_t *mb2i, uint32_t signature) {
 	if (signature != MULTIBOOT2_BOOTLOADER_MAGIC) {
@@ -94,7 +94,7 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 
 	// Map bootstrapper image into memory so a page fault is not immediately
 	// thrown after enabling paging
-	for (uint64_t phys = bsp_image_base; phys <= bsp_image_ciel; phys += PAGE_SIZE) {
+	for (uint64_t phys = bsp_image_base; phys <= bsp_image_ceil; phys += PAGE_SIZE) {
 		ARC_DEBUG(INFO, "\tIdentity mapping 4 KiB page: 0x%"PRIx64"\n", phys);
 
 		if (Arc_MapPageVMM(phys, phys, 0) != 0) {

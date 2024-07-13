@@ -58,7 +58,7 @@ extern uint8_t __BOOTSTRAP_START__;
 extern uint8_t __BOOTSTRAP_END__;
 
 extern uint64_t bsp_image_base;
-extern uint64_t bsp_image_ciel;
+extern uint64_t bsp_image_ceil;
 
 extern void *term_address;
 extern int term_w;

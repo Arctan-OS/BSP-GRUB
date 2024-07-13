@@ -56,11 +56,10 @@ void Arc_TermPutChar(char c) {
         }
 
         if (term_y >= term_h / 8 - 5) {
-                term_y--;
+                term_y = 0;
                 term_x = 0;
 
-		memcpy(term_address, term_address + term_w * 8 * (term_bpp / 8), term_w * (term_h - 1) * (term_bpp / 8));
-		memset(term_address + term_w * (term_h) * (term_bpp / 8), 0, term_w * 8 * (term_bpp / 8));
+		memset(term_address, 0, term_w * term_h * (term_bpp / 8));
         }
 
         int sx = term_x * 8;

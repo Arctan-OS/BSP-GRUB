@@ -157,14 +157,14 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 			struct multiboot_tag_load_base_addr *info = (struct multiboot_tag_load_base_addr *)tag;
 
 			bsp_image_base = (uint64_t)info->load_base_addr;
-			bsp_image_ciel = (uint64_t)bsp_image_base + ((uint64_t)&__BOOTSTRAP_END__ - (uint64_t)&__BOOTSTRAP_START__);
-			uint64_t aligned = ALIGN(bsp_image_ciel, PAGE_SIZE);
+			bsp_image_ceil = (uint64_t)bsp_image_base + ((uint64_t)&__BOOTSTRAP_END__ - (uint64_t)&__BOOTSTRAP_START__);
+			uint64_t aligned = ALIGN(bsp_image_ceil, PAGE_SIZE);
 
 			ARC_DEBUG(INFO, "Base address:\n");
 			ARC_DEBUG(INFO, "\tLoaded at: 0x%"PRIx32"\n", info->load_base_addr);
-			ARC_DEBUG(INFO, "\tLast address: 0x%"PRIx64" (0x%"PRIx64")\n", bsp_image_ciel, aligned);
+			ARC_DEBUG(INFO, "\tLast address: 0x%"PRIx64" (0x%"PRIx64")\n", bsp_image_ceil, aligned);
 
-			if (ALIGN(bsp_image_ciel, PAGE_SIZE) > bootstrap_end_phys) {
+			if (ALIGN(bsp_image_ceil, PAGE_SIZE) > bootstrap_end_phys) {
 				bootstrap_end_phys = aligned;
 			}
 

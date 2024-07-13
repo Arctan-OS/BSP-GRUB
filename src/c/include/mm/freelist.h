@@ -35,13 +35,16 @@ struct ARC_FreelistNode {
 	struct ARC_FreelistNode *next __attribute__((aligned(8)));
 };
 
+// BUG: I foresee a bug here. If an allocation is directly after
+//      this header, then it is possible for this object to be overwritten
+//      and screwed with, intentionally or unintentionally
 struct ARC_FreelistMeta {
 	/// Current free node.
 	struct ARC_FreelistNode *head __attribute__((aligned(8)));
 	/// First node.
 	struct ARC_FreelistNode *base __attribute__((aligned(8)));
 	/// Last node.
-	struct ARC_FreelistNode *ciel __attribute__((aligned(8)));
+	struct ARC_FreelistNode *ceil __attribute__((aligned(8)));
 	/// Next joined list.
 	struct ARC_FreelistMeta *next __attribute__((aligned(8)));
 	/// Size of each node in bytes.
@@ -100,11 +103,11 @@ int Arc_ListLink(struct ARC_FreelistMeta *A, struct ARC_FreelistMeta *B);
  * Initialize the given memory as a freelist.
  *
  * @param uint64_t _base - The lowest address within the list.
- * @param uint64_t _ciel - The highest address within the list + object_size.
+ * @param uint64_t _ceil - The highest address within the list + object_size.
  * @param uint64_t _object_size - The size of each object in bytes.
  * @param struct ARC_FrelistMeta *meta - The variable in which list information should be stored.
- * @return returns the pointer to the freelist meta.
+ * @return returns the pointer to the freelist meta (_base == return value).
  * */
-struct ARC_FreelistMeta *Arc_InitializeFreelist(uint64_t _base, uint64_t _ciel, uint64_t _object_size);
+struct ARC_FreelistMeta *Arc_InitializeFreelist(uint64_t _base, uint64_t _ceil, uint64_t _object_size);
 
 #endif

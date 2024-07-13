@@ -51,6 +51,53 @@ int memcpy(void *a, void *b, size_t size) {
 	return 0;
 }
 
+// word_size in bytes
+// size in bytes
+int wordcpy(void *a, void *b, size_t size, int word_size) {
+	switch (word_size) {
+	case 0: {
+		return 0;
+	}
+
+	case 1: {
+		return memcpy(a, b, size);
+	}
+
+	case 2: {
+		size_t i = 0;
+		while (i < size) {
+			*(uint16_t *)(a + i) = *(uint16_t *)(b + i);
+			i++;
+		}
+
+		return 0;
+	}
+
+	case 4: {
+		size_t i = 0;
+		while (i < size) {
+			*(uint32_t *)(a + i) = *(uint32_t *)(b + i);
+			i++;
+		}
+
+		return 0;
+	}
+
+	case 8: {
+		size_t i = 0;
+		while (i < size) {
+			*(uint64_t *)(a + i) = *(uint64_t *)(b + i);
+			i++;
+		}
+
+		return 0;
+	}
+	}
+
+	return 0;
+}
+
+
 void memset(void *mem, uint8_t value, size_t size) {
 	for (size_t i = 0; i < size; i++) {
 		*(uint8_t *)(mem + i) = value;
