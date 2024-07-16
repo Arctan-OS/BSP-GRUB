@@ -32,7 +32,6 @@
 #include <arch/x86/ctrl_regs.h>
 #include <inttypes.h>
 
-
 #define ADDRESS_MASK 0x000FFFFFFFFFF000
 
 // Bitmap of supported features, the flags parameter
@@ -155,6 +154,8 @@ int Arc_InitVMM() {
 		efer |= 1 << 11;
 		_x86_WRMSR(0xC0000080, efer);
 	}
+
+	_boot_meta.paging_features = feature_set;
 
 	ARC_DEBUG(INFO, "Initialized VMM\n");
 

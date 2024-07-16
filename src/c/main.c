@@ -36,6 +36,7 @@
 #include <elf/elf.h>
 #include <multiboot/multiboot2.h>
 #include <mm/freelist.h>
+#include <arch/x86/cpuid.h>
 
 uint64_t kernel_entry = 0;
 uint64_t bsp_image_base = 0;
@@ -54,6 +55,9 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 	Arc_InstallGDT();
 	// Setup IDT
 	Arc_InstallIDT();
+
+	// Check requirements
+	Arc_CheckCPUID();
 
 	// Parse all multiboot2 boot information
 	Arc_ParseMB2I(mb2i);

@@ -80,6 +80,8 @@ struct ARC_BootMeta {
 	int arc_mmap_len;
 	/// RSDP address.
 	uint64_t rsdp;
+	/// Features of paging
+	uint32_t paging_features;
 }__attribute__((packed));
 
 #endif
