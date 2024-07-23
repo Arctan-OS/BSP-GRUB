@@ -32,7 +32,7 @@
 #include <interface/terminal.h>
 
 void putchar_(char c) {
-        Arc_TermPutChar(c);
+        term_putchar(c);
         E9_HACK(c);
 }
 

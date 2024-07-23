@@ -40,6 +40,6 @@
  * @param void *mb2i - Pointer to the base of the first tag.
  * @return Error code (0: success).
  * */
-int Arc_ParseMB2I(uint8_t *mb2i);
+int parse_mb2i(uint8_t *mb2i);
 
 #endif

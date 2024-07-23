@@ -36,6 +36,6 @@
  * [2]: 32/64 Kernel Data.
  * [3]: 64 Kernel Code.
  * */
-void Arc_InstallGDT();
+void init_gdt();
 
 #endif

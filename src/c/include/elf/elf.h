@@ -30,6 +30,6 @@
 
 #include <stdint.h>
 
-uint64_t Arc_LoadELF(uint8_t *data);
+uint64_t load_elf(uint8_t *data);
 
 #endif

@@ -43,7 +43,7 @@ uint32_t feature_set = 0;
 
 uint64_t *pml4 = NULL;
 
-int Arc_MapPageVMM(uint64_t physical, uint64_t virtual, uint32_t flags) {
+int vmm_map(uint64_t physical, uint64_t virtual, uint32_t flags) {
 	int offset = virtual & 0xFFF; // Offset into the page
 	int pt_e = (virtual >> 12) & 0x1FF; // Index of the page in the page table
 	int pd_e = (virtual >> 21) & 0x1FF; // Index of the page table in the page directory
@@ -124,7 +124,7 @@ int Arc_MapPageVMM(uint64_t physical, uint64_t virtual, uint32_t flags) {
 	return 0;
 }
 
-int Arc_InitVMM() {
+int init_vmm() {
 	ARC_DEBUG(INFO, "Initializing VMM\n");
 
 	pml4 = Arc_AllocPMM();

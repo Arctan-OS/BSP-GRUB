@@ -27,7 +27,7 @@
 #include <lib/atomics.h>
 #include <util.h>
 
-int Arc_MutexStaticInit(ARC_GenericMutex *mutex) {
+int init_static_mutex(ARC_GenericMutex *mutex) {
 	if (mutex == NULL) {
 		return 1;
 	}
@@ -37,13 +37,13 @@ int Arc_MutexStaticInit(ARC_GenericMutex *mutex) {
 	return 0;
 }
 
-int Arc_MutexLock(ARC_GenericMutex *mutex) {
+int mutex_lock(ARC_GenericMutex *mutex) {
 	// Atomically lock and yield if it is locked
 	(void)mutex;
 	return 0;
 }
 
-int Arc_MutexUnlock(ARC_GenericMutex *mutex) {
+int mutex_unlock(ARC_GenericMutex *mutex) {
 	// Atomically unlock
 	(void)mutex;
 	return 0;

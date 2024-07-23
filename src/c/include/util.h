@@ -39,13 +39,13 @@
 #define ARC_DEBUG_ERR_STR  "[ERROR]"
 
 #define ARC_DEBUG(__level__, ...) ARC_DEBUG_##__level__(__VA_ARGS__)
-#define ARC_DEBUG_ERR(...)  Arc_TermSetFG(0x00FF0000); printf(ARC_DEBUG_ERR_STR  ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
+#define ARC_DEBUG_ERR(...)  term_set_fg(0x00FF0000); printf(ARC_DEBUG_ERR_STR  ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
 
 #ifdef ARC_DEBUG_ENABLE
 #define ARC_DEBUG_INFO_STR "[INFO]"
 #define ARC_DEBUG_WARN_STR "[WARNING]"
-#define ARC_DEBUG_INFO(...) Arc_TermSetFG(0xFFFFFFFF); printf(ARC_DEBUG_INFO_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
-#define ARC_DEBUG_WARN(...) Arc_TermSetFG(0x00FFFF00); printf(ARC_DEBUG_WARN_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
+#define ARC_DEBUG_INFO(...) term_set_fg(0xFFFFFFFF); printf(ARC_DEBUG_INFO_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
+#define ARC_DEBUG_WARN(...) term_set_fg(0x00FFFF00); printf(ARC_DEBUG_WARN_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
 #else
 #define ARC_DEBUG_INFO(...) ;
 #define ARC_DEBUG_WARN(...) ;

@@ -186,14 +186,14 @@ uint64_t elf_load64(uint8_t *data) {
 		}
 
 		for (uint64_t page = 0; page < size; page += PAGE_SIZE) {
-			Arc_MapPageVMM(phys_base + page, load_base + page, 0);
+			vmm_map(phys_base + page, load_base + page, 0);
 		}
 	}
 
 	return entry_addr;
 }
 
-uint64_t Arc_LoadELF(uint8_t *data) {
+uint64_t load_elf(uint8_t *data) {
 	struct Elf64_Ehdr *header = (struct Elf64_Ehdr *)data;
 
 	if (header->e_ident[EI_CLASS] != CLASS_64) {

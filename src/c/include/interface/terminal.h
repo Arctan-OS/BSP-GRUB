@@ -29,8 +29,8 @@
 
 #include <stdint.h>
 
-void Arc_SetTerm(void *address, int w, int h, int bpp);
-void Arc_TermPutChar(char c);
-void Arc_TermSetFG(uint32_t color);
+void set_term(void *address, int w, int h, int bpp);
+void term_putchar(char c);
+void term_set_fg(uint32_t color);
 
 #endif

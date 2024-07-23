@@ -35,26 +35,26 @@
 struct ARC_FreelistMeta *pmm_meta = NULL;
 
 void *Arc_AllocPMM() {
-	return Arc_ListAlloc(pmm_meta);
+	return freelist_alloc(pmm_meta);
 }
 
 void *Arc_FreePMM(void *address) {
-	return Arc_ListFree(pmm_meta, address);
+	return freelist_free(pmm_meta, address);
 }
 
 void *Arc_ContiguousAllocPMM(int objects) {
-	return Arc_ListContiguousAlloc(pmm_meta, objects);
+	return freelist_contig_alloc(pmm_meta, objects);
 }
 
 void *Arc_ContiguousFreePMM(void *address, int objects) {
-	return Arc_ListContiguousFree(pmm_meta, address, objects);
+	return freelist_contig_free(pmm_meta, address, objects);
 }
 
-int Arc_InitPMM() {
+int init_pmm() {
 	struct ARC_MMap *mmap = (struct ARC_MMap *)_boot_meta.arc_mmap;
 
 	if (mmap == NULL || _boot_meta.arc_mmap_len <= 0) {
-		ARC_DEBUG(ERR, "MMap is NULL or contains 0 entries, failed to initialize PMM\n");
+		ARC_DEBUG(ERR, "MMap (%p) is NULL or contains 0 (%d) entries, failed to initialize PMM\n", mmap, _boot_meta.arc_mmap_len);
 		return -1;
 	}
 
@@ -82,7 +82,7 @@ int Arc_InitPMM() {
 		// the freelists that are initialized here to use HHDM addresses and
 		// still let's this code use the list as only the lower 32-bits are used
 		// by it
-		void *list = Arc_InitializeFreelist(base + _boot_meta.hhdm_vaddr, ceil + _boot_meta.hhdm_vaddr, PAGE_SIZE);
+		void *list = init_freelist(base + _boot_meta.hhdm_vaddr, ceil + _boot_meta.hhdm_vaddr, PAGE_SIZE);
 
 		int ret = 0;
 
@@ -93,7 +93,7 @@ int Arc_InitPMM() {
 		} else {
 			ARC_DEBUG(INFO, "\t\tLinking newly made list into primary\n")
 			// Link lists
-			ret = Arc_ListLink(pmm_meta, list);
+			ret = link_freelists(pmm_meta, list);
 		}
 
 		if (ret != 0) {

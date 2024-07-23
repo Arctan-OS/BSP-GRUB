@@ -38,14 +38,14 @@ int term_x = 0;
 int term_y = 0;
 uint32_t fg = 0xFFFFFF;
         	
-void Arc_SetTerm(void *address, int w, int h, int bpp) {
+void set_term(void *address, int w, int h, int bpp) {
         term_address = address;
         term_w = w;
         term_h = h;
         term_bpp = bpp;
 }
 
-void Arc_TermPutChar(char c) {
+void term_putchar(char c) {
         if (term_address == NULL) {
                 return;
         }
@@ -100,6 +100,6 @@ void Arc_TermPutChar(char c) {
         }
 }
 
-void Arc_TermSetFG(uint32_t color) {
+void term_set_fg(uint32_t color) {
         fg = color;
 }

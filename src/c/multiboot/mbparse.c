@@ -73,7 +73,7 @@ uint32_t mb2_MMType2Type(uint32_t mb2_type) {
 	return -1;
 }
 
-int Arc_ParseMB2I(uint8_t *mb2i) {
+int parse_mb2i(uint8_t *mb2i) {
 	// Get information from the fixed tag
 	uint32_t total_size = *(uint32_t *)mb2i;
 
@@ -105,7 +105,7 @@ int Arc_ParseMB2I(uint8_t *mb2i) {
 
 			// Set framebuffer
 			struct multiboot_tag_framebuffer_common common = (struct multiboot_tag_framebuffer_common)fb_tag->common;
-			Arc_SetTerm((void *)common.framebuffer_addr, common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
+			set_term((void *)common.framebuffer_addr, common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 			ARC_DEBUG(INFO, "Framebuffer 0x%"PRIx64" (%d) %dx%dx%d\n", common.framebuffer_addr, common.framebuffer_type, common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 
 			mb2_bootinfo.fb = (uint64_t)tag;

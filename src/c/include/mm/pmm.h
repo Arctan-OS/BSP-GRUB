@@ -33,6 +33,6 @@ void *Arc_FreePMM(void *address);
 void *Arc_ContiguousAllocPMM(int objects);
 void *Arc_ContiguousFreePMM(void *address, int objects);
 
-int Arc_InitPMM();
+int init_pmm();
 
 #endif

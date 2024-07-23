@@ -7,7 +7,7 @@
 
 #define PAGE_ATTRIBUTE(n, val) (uint64_t)((uint64_t)(val & 0b111) << (n * 8))
 
-int Arc_CheckCPUID() {
+int check_cpuid() {
 	register uint32_t eax;
         register uint32_t ebx;
         register uint32_t ecx;

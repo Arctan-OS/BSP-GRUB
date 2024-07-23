@@ -37,37 +37,41 @@ STACK_SZ            equ 0x1000                      ; 4 KiB of stack should be f
 section .mb2header
 
 align 8
-boot_header:        dd MAGIC
-                    dd ARCH
-                    dd LENGTH
-                    dd CHECKSUM
+boot_header:
+        dd MAGIC
+        dd ARCH
+        dd LENGTH
+        dd CHECKSUM
 align 8
-                    ; Module Align tag
-                    dw 0x6
-                    dw 0x0
-                    dd 0x8
+        ;; Module Align tag
+        dw 0x6
+        dw 0x0
+        dd 0x8
 align 8
-                    ; Framebuffer Request tag
-                    dw 0x5
-                    dw 0x0
-                    dd 0x20
-                    dd 0x0                              ; Allow bootloader to pick width
-                    dd 0x0                              ; Allow bootloader to pick height
-                    dd 0x0                              ; Allow bootloader to pick bpp
+        ;; Framebuffer Request tag
+        dw 0x5
+        dw 0x0
+        dd 0x20
+        ;; Allow bootloader to pick width
+        dd 0x0
+        ;; Allow bootloader to pick height
+        dd 0x0
+        ;; Allow bootloader to pick bpp
+        dd 0x0
 align 8
-                    ; Relocatable Image tag
-                    dw 0xA
-                    dw 0x0
-                    dd 24
-                    dd 0x100000
-                    dd 0x10000000
-                    dd 0x1000
-                    dd 1
+        ;; Relocatable Image tag
+        dw 0xA
+        dw 0x0
+        dd 24
+        dd 0x100000
+        dd 0x10000000
+        dd 0x1000
+        dd 1
 align 8
-                    ; End Of Tags tag
-                    dw 0x0
-                    dw 0x0
-                    dd 0x8
+        ;; End of Tags tag
+        dw 0x0
+        dw 0x0
+        dd 0x8
 boot_header_end:
 
 section .text
@@ -76,33 +80,41 @@ extern helper
 extern pml4
 extern _kernel_station
 global _entry
-extern __BOOTSTRAP_STACK__
-_entry:             mov ebp, __BOOTSTRAP_STACK__                     ; Setup stack
-                    mov esp, ebp                        ; Make sure base gets the memo
-                    push eax                            ; Push multiboot2 loader signature
-                    push ebx                            ; Push boot information
-                    call helper                             ; HELP!
+_entry:
+        ;; Setup everything
+        mov ebp, __BOOTSTRAP_STACK__
+        mov esp, ebp
+        push eax
+        push ebx
+        call helper
 
-                    mov eax, cr4
-                    or eax, 1 << 5
-                    mov cr4, eax
+        ;; Switch to long mode and set paging
+        mov eax, cr4
+        or eax, 1 << 5
+        mov cr4, eax
 
-                    mov eax, dword [pml4]
-                    mov cr3, eax
+        mov eax, dword [pml4]
+        mov cr3, eax
 
-                    mov ecx, 0xC0000080
-                    rdmsr
-                    or eax, 1 << 8
-                    wrmsr
+        mov ecx, 0xC0000080
+        rdmsr
+        or eax, 1 << 8
+        wrmsr
 
-                    mov eax, cr0
-                    or eax, 1 << 31
-                    mov cr0, eax
+        mov eax, cr0
+        or eax, 1 << 31
+        mov cr0, eax
 
-                    jmp 0x18:_kernel_station
+        ;; Jump to x86_64.asm
+        jmp 0x18:_kernel_station
 
 section .bss
 
 global _boot_meta
-BOOT_MEMBER_COUNT   equ 16                                  ; Member count
-_boot_meta:         resq BOOT_MEMBER_COUNT
+_boot_meta:
+        resq 64
+
+        ;; Stack
+                    resb 0x2000
+global __BOOTSTRAP_STACK__
+__BOOTSTRAP_STACK__:

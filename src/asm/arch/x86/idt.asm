@@ -30,43 +30,45 @@ bits 32
 
 global _install_idt
 extern idtr
-_install_idt:       cli
-                    lidt [idtr]
-                    sti
-                    ret
+_install_idt:
+        cli
+        lidt [idtr]
+        sti
+        ret
 
 %macro PUSH_ALL 0
-                    push esp
-                    push ebp
-                    push edi
-                    push esi
-                    push edx
-                    push ecx
-                    push ebx
-                    push eax
+       push esp
+       push ebp
+       push edi
+       push esi
+       push edx
+       push ecx
+       push ebx
+       push eax
 %endmacro
 
 %macro POP_ALL 0
-                    pop eax
-                    pop ebx
-                    pop ecx
-                    pop edx
-                    pop esi
-                    pop edi
-                    pop ebp
-                    pop esp
+       pop eax
+       pop ebx
+       pop ecx
+       pop edx
+       pop esi
+       pop edi
+       pop ebp
+       pop esp
 %endmacro
 
 extern interrupt_junction
 %macro common_idt_stub 1
 global _idt_stub_%1_
-_idt_stub_%1_:      push %1
-                    PUSH_ALL
-                    push esp
-                    call interrupt_junction
-                    pop esp
-                    POP_ALL
-                    iret
+_idt_stub_%1_:
+        push %1
+        PUSH_ALL
+        push esp
+        call interrupt_junction
+        pop esp
+        POP_ALL
+        iret
 %endmacro
 
 common_idt_stub 0

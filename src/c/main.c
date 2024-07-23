@@ -52,25 +52,31 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 	_boot_meta.hhdm_vaddr = 0xFFFFC00000000000;
 
 	// Setup GDT
-	Arc_InstallGDT();
+	init_gdt();
 	// Setup IDT
-	Arc_InstallIDT();
+	init_idt();
 
 	// Check requirements
-	Arc_CheckCPUID();
+	check_cpuid();
 
 	// Parse all multiboot2 boot information
-	Arc_ParseMB2I(mb2i);
+	if (parse_mb2i(mb2i) != 0) {
+		ARC_HANG;
+	}
 
 	// Initialize freelist page frame allocator
 	//   Goal of this allocator is to make it so
 	//   all page frames below UINT32_MAX are allocatable
 	// TODO: Use a simpler, more coarse, allocator like a buddy
 	//       allocator
-	Arc_InitPMM();
+	if (init_pmm() != 0) {
+		ARC_HANG;
+	}
 
 	// Initialize VMM
-	Arc_InitVMM();
+	if (init_vmm() != 0) {
+		ARC_HANG;
+	}
 
 	ARC_DEBUG(INFO, "Constructing HHDM at 0x%"PRIx64":\n", _boot_meta.hhdm_vaddr);
 
@@ -87,7 +93,7 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 		ARC_DEBUG(INFO, "\tMapping MMap entry %d 0x%"PRIx64" -> 0x%"PRIx64"\n", i, phys_base, virt_base)
 
 		for (uint64_t page = 0; page < mmap[i].len; page += PAGE_SIZE) {
-			if (Arc_MapPageVMM(phys_base + page, virt_base + page, ARC_VMM_NO_EXEC) != 0) {
+			if (vmm_map(phys_base + page, virt_base + page, ARC_VMM_NO_EXEC) != 0) {
 				ARC_DEBUG(ERR, "\tFailed to construct HHDM!\n");
 				ARC_HANG;
 			}
@@ -101,7 +107,7 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 	for (uint64_t phys = bsp_image_base; phys <= bsp_image_ceil; phys += PAGE_SIZE) {
 		ARC_DEBUG(INFO, "\tIdentity mapping 4 KiB page: 0x%"PRIx64"\n", phys);
 
-		if (Arc_MapPageVMM(phys, phys, 0) != 0) {
+		if (vmm_map(phys, phys, 0) != 0) {
 			ARC_DEBUG(ERR, "\tFailed to identity map!\n");
 			ARC_HANG;
 		}
@@ -109,12 +115,12 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 
 	// Parse the Kernel ELF file and map it into memory using 4 KiB pages
 	// and set kernel_entry to the virtual address of where the kernel is
-	kernel_entry = Arc_LoadELF((uint8_t *)_boot_meta.kernel_elf);
+	kernel_entry = load_elf((uint8_t *)_boot_meta.kernel_elf);
 
 	uint64_t term_addr = ((uint64_t)term_address) & UINT32_MAX;
 
 	for (uint64_t page = 0; page < term_w * term_h * (term_bpp / 4); page += PAGE_SIZE) {
-		if (Arc_MapPageVMM(term_addr + page, term_addr + _boot_meta.hhdm_vaddr + page, ARC_VMM_NO_EXEC) != 0) {
+		if (vmm_map(term_addr + page, term_addr + _boot_meta.hhdm_vaddr + page, ARC_VMM_NO_EXEC) != 0) {
 			ARC_DEBUG(ERR, "\tFailed to map framebuffer\n");
 		}
 	}
