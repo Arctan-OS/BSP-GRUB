@@ -51,7 +51,7 @@ void *Arc_ContiguousFreePMM(void *address, int objects) {
 }
 
 int init_pmm() {
-	struct ARC_MMap *mmap = (struct ARC_MMap *)_boot_meta.arc_mmap;
+	struct ARC_MMap *mmap = (struct ARC_MMap *)((uintptr_t)_boot_meta.arc_mmap);
 
 	if (mmap == NULL || _boot_meta.arc_mmap_len <= 0) {
 		ARC_DEBUG(ERR, "MMap (%p) is NULL or contains 0 (%d) entries, failed to initialize PMM\n", mmap, _boot_meta.arc_mmap_len);
@@ -103,7 +103,7 @@ int init_pmm() {
 		total_free += mmap[i].len;
 	}
 
-	_boot_meta.pmm_state = (uint64_t)pmm_meta;
+	_boot_meta.pmm_state = (uintptr_t)pmm_meta;
 
 	ARC_DEBUG(INFO, "Successfully initialized PMM, 0x%"PRIx64" bytes free\n", total_free);
 

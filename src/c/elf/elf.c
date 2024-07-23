@@ -164,9 +164,9 @@ uint64_t elf_load64(uint8_t *data) {
 		struct Elf64_Shdr section_header = ((struct Elf64_Shdr *)(data + header->e_shoff))[i];
 
 		uint64_t load_base = section_header.sh_addr;
-		uint64_t phys_base = (uint64_t)data + section_header.sh_offset;
+		uint64_t phys_base = (uintptr_t)data + section_header.sh_offset;
 		uint64_t size = section_header.sh_size;
-		char *string = (char *)((uint64_t)data + strings.sh_offset + section_header.sh_name);
+		char *string = (char *)((uintptr_t)(data + strings.sh_offset + section_header.sh_name));
 
 		ARC_DEBUG(INFO, "\t%3d: 0x%016"PRIx64" -> 0x%016"PRIx64", 0x%016"PRIx64" B | %s\n", i, phys_base, load_base, size, string);
 
@@ -180,7 +180,7 @@ uint64_t elf_load64(uint8_t *data) {
 
 			ARC_DEBUG(INFO, "\t\tSection is of type NOBITS, allocating %d pages and mapping\n", objects);
 
-			phys_base = (uint64_t)Arc_ContiguousAllocPMM(objects);
+			phys_base = (uintptr_t)Arc_ContiguousAllocPMM(objects);
 
 			ARC_DEBUG(INFO, "\t\tSection new phys_base: 0x%"PRIx64"\n", phys_base);
 		}

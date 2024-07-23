@@ -273,7 +273,7 @@ struct ARC_FreelistMeta *init_freelist(uint64_t _base, uint64_t _ceil, uint64_t 
 		return NULL;
 	}
 
-	struct ARC_FreelistMeta *meta = (struct ARC_FreelistMeta *)_base;
+	struct ARC_FreelistMeta *meta = (struct ARC_FreelistMeta *)((uintptr_t)_base);
 
 	memset(meta, 0, sizeof(struct ARC_FreelistMeta));
 
@@ -284,8 +284,8 @@ struct ARC_FreelistMeta *init_freelist(uint64_t _base, uint64_t _ceil, uint64_t 
 	_base += objects * _object_size;
 	_ceil -= _object_size;
 
-	struct ARC_FreelistNode *base = (struct ARC_FreelistNode *)_base;
-	struct ARC_FreelistNode *ceil = (struct ARC_FreelistNode *)_ceil;
+	struct ARC_FreelistNode *base = (struct ARC_FreelistNode *)((uintptr_t)_base);
+	struct ARC_FreelistNode *ceil = (struct ARC_FreelistNode *)((uintptr_t)_ceil);
 
 	// Store meta information
 	meta->base = base;
@@ -299,7 +299,7 @@ struct ARC_FreelistMeta *init_freelist(uint64_t _base, uint64_t _ceil, uint64_t 
 	// Initialize the linked list
 	struct ARC_FreelistNode *current = NULL;
 	for (; _base < _ceil; _base += _object_size) {
-		current = (struct ARC_FreelistNode *)_base;
+		current = (struct ARC_FreelistNode *)((uintptr_t)_base);
 		*(uint64_t *)current = _base + _object_size;
 	}
 

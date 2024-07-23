@@ -82,7 +82,7 @@ int parse_mb2i(uint8_t *mb2i) {
 		return -1;
 	}
 
-	mb2_bootinfo.mbi_phys = (uint64_t)mb2i;
+	mb2_bootinfo.mbi_phys = (uintptr_t)mb2i;
 
 	// Start at first 8-byte aligned tag
 	uint32_t offset = 8;
@@ -105,10 +105,10 @@ int parse_mb2i(uint8_t *mb2i) {
 
 			// Set framebuffer
 			struct multiboot_tag_framebuffer_common common = (struct multiboot_tag_framebuffer_common)fb_tag->common;
-			set_term((void *)common.framebuffer_addr, common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
+			set_term((void *)((uintptr_t)common.framebuffer_addr), common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 			ARC_DEBUG(INFO, "Framebuffer 0x%"PRIx64" (%d) %dx%dx%d\n", common.framebuffer_addr, common.framebuffer_type, common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 
-			mb2_bootinfo.fb = (uint64_t)tag;
+			mb2_bootinfo.fb = (uintptr_t)tag;
 
 			break;
 		}
@@ -157,7 +157,7 @@ int parse_mb2i(uint8_t *mb2i) {
 			struct multiboot_tag_load_base_addr *info = (struct multiboot_tag_load_base_addr *)tag;
 
 			bsp_image_base = (uint64_t)info->load_base_addr;
-			bsp_image_ceil = (uint64_t)bsp_image_base + ((uint64_t)&__BOOTSTRAP_END__ - (uint64_t)&__BOOTSTRAP_START__);
+			bsp_image_ceil = (uint64_t)bsp_image_base + (uint64_t)((uintptr_t)&__BOOTSTRAP_END__ - (uintptr_t)&__BOOTSTRAP_START__);
 			uint64_t aligned = ALIGN(bsp_image_ceil, PAGE_SIZE);
 
 			ARC_DEBUG(INFO, "Base address:\n");
@@ -276,7 +276,7 @@ int parse_mb2i(uint8_t *mb2i) {
 				arc_mmap_entry++;
 			}
 
-			_boot_meta.arc_mmap = (uint64_t)&arc_mmap;
+			_boot_meta.arc_mmap = (uintptr_t)&arc_mmap;
 			_boot_meta.arc_mmap_len = arc_mmap_entry;
 
 			const char *names[] = {
@@ -318,7 +318,7 @@ int parse_mb2i(uint8_t *mb2i) {
 
 		case MULTIBOOT_TAG_TYPE_ACPI_NEW: {
 			struct multiboot_tag_new_acpi *acpi = (struct multiboot_tag_new_acpi *)tag;
-			_boot_meta.rsdp = (uint64_t)&acpi->rsdp;
+			_boot_meta.rsdp = (uintptr_t)&acpi->rsdp;
 			ARC_DEBUG(INFO, "Found new ACPI (0x%"PRIx64")\n", acpi->rsdp);
 
 			break;
@@ -326,7 +326,7 @@ int parse_mb2i(uint8_t *mb2i) {
 
 		case MULTIBOOT_TAG_TYPE_ACPI_OLD: {
 			struct multiboot_tag_old_acpi *acpi = (struct multiboot_tag_old_acpi *)tag;
-			_boot_meta.rsdp = (uint64_t)&acpi->rsdp;
+			_boot_meta.rsdp = (uintptr_t)&acpi->rsdp;
 			ARC_DEBUG(INFO, "Found old ACPI (0x%"PRIx32")\n", acpi->rsdp);
 
 			break;
@@ -372,7 +372,7 @@ int parse_mb2i(uint8_t *mb2i) {
 		offset += ALIGN(tag->size, 8);
 	}
 
-	_boot_meta.boot_info = (uint64_t)&mb2_bootinfo;
+	_boot_meta.boot_info = (uintptr_t)&mb2_bootinfo;
 	_boot_meta.boot_proc = ARC_BOOTPROC_MB2;
 
 	return 0;

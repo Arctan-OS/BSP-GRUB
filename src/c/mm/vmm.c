@@ -50,7 +50,7 @@ int vmm_map(uint64_t physical, uint64_t virtual, uint32_t flags) {
 	int pdp_e = (virtual >> 30) & 0x1FF; // Index of the page directory in the page directory pointer table
 	int pml4_e = (virtual >> 39) & 0x1FF; // Index of the page directory pointer table in the PML4
 
-	uint64_t *pdp = (uint64_t *)(pml4[pml4_e] & ADDRESS_MASK);
+	uint64_t *pdp = (uint64_t *)((uintptr_t)(pml4[pml4_e] & ADDRESS_MASK));
 	if ((pml4[pml4_e] & 0b11) == 0) {
 		// No such entry
 		pdp = Arc_AllocPMM();
@@ -61,10 +61,10 @@ int vmm_map(uint64_t physical, uint64_t virtual, uint32_t flags) {
 		}
 
 		memset(pdp, 0, PAGE_SIZE);
-		pml4[pml4_e] = (((uint64_t)pdp) & ADDRESS_MASK) | 0b11;
+		pml4[pml4_e] = ((uintptr_t)pdp & ADDRESS_MASK) | 0b11;
 	}
 
-	uint64_t *pd = (uint64_t *)(pdp[pdp_e] & ADDRESS_MASK);
+	uint64_t *pd = (uint64_t *)((uintptr_t)(pdp[pdp_e] & ADDRESS_MASK));
 	if ((pdp[pdp_e] & 0b11) == 0) {
 		pd = Arc_AllocPMM();
 
@@ -74,7 +74,7 @@ int vmm_map(uint64_t physical, uint64_t virtual, uint32_t flags) {
 		}
 
 		memset(pd, 0, PAGE_SIZE);
-		pdp[pdp_e] = (((uint64_t)pd) & ADDRESS_MASK) | 0b11;
+		pdp[pdp_e] = ((uintptr_t)pd & ADDRESS_MASK) | 0b11;
 
 		if ((flags & ARC_VMM_NO_EXEC) != 0) {
 			// Set NX bit
@@ -89,7 +89,7 @@ int vmm_map(uint64_t physical, uint64_t virtual, uint32_t flags) {
 		}
 	}
 
-	uint64_t *pt = (uint64_t *)(pd[pd_e] & ADDRESS_MASK);
+	uint64_t *pt = (uint64_t *)((uintptr_t)(pd[pd_e] & ADDRESS_MASK));
 	if ((pd[pd_e] & 0b11) == 0) {
 		pt = Arc_AllocPMM();
 
@@ -99,7 +99,7 @@ int vmm_map(uint64_t physical, uint64_t virtual, uint32_t flags) {
 		}
 
 		memset(pt, 0, PAGE_SIZE);
-		pd[pd_e] = (((uint64_t)pt) & ADDRESS_MASK) | 0b11;
+		pd[pd_e] = ((uintptr_t)pt & ADDRESS_MASK) | 0b11;
 
 		if ((flags & ARC_VMM_NO_EXEC) != 0) {
 			// Set NX bit
@@ -112,7 +112,7 @@ int vmm_map(uint64_t physical, uint64_t virtual, uint32_t flags) {
 		}
 	}
 
-	uint64_t *page = (uint64_t *)(pd[pd_e] & ADDRESS_MASK);
+	uint64_t *page = (uint64_t *)((uintptr_t)(pd[pd_e] & ADDRESS_MASK));
 	if ((pt[pt_e] & 0b11) == 0) {
 		pt[pt_e] = (physical & ADDRESS_MASK) | 0b11;
 

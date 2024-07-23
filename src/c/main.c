@@ -48,6 +48,8 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 		ARC_HANG;
 	}
 
+	memset(&_boot_meta, 0, sizeof(struct ARC_BootMeta));
+
 	// Set the HHDM virtual address
 	_boot_meta.hhdm_vaddr = 0xFFFFC00000000000;
 
@@ -80,7 +82,7 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 
 	ARC_DEBUG(INFO, "Constructing HHDM at 0x%"PRIx64":\n", _boot_meta.hhdm_vaddr);
 
-	struct ARC_MMap *mmap = (struct ARC_MMap *)_boot_meta.arc_mmap;
+	struct ARC_MMap *mmap = (struct ARC_MMap *)((uintptr_t)_boot_meta.arc_mmap);
 
 	// Put together HHDM so kernel can access all physical memory
 	// later on
@@ -115,10 +117,10 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 
 	// Parse the Kernel ELF file and map it into memory using 4 KiB pages
 	// and set kernel_entry to the virtual address of where the kernel is
-	kernel_entry = load_elf((uint8_t *)_boot_meta.kernel_elf);
+	kernel_entry = load_elf((uint8_t *)((uintptr_t)_boot_meta.kernel_elf));
 
-	uint64_t term_addr = ((uint64_t)term_address) & UINT32_MAX;
-
+	// Map the framebuffer into memory as well
+	uint64_t term_addr = ((uintptr_t)term_address) & UINT32_MAX;
 	for (uint64_t page = 0; page < term_w * term_h * (term_bpp / 4); page += PAGE_SIZE) {
 		if (vmm_map(term_addr + page, term_addr + _boot_meta.hhdm_vaddr + page, ARC_VMM_NO_EXEC) != 0) {
 			ARC_DEBUG(ERR, "\tFailed to map framebuffer\n");
