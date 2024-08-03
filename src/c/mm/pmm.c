@@ -33,6 +33,7 @@
 #include <inttypes.h>
 
 struct ARC_FreelistMeta *pmm_meta = NULL;
+struct ARC_FreelistMeta *pmm_low_meta = NULL;
 
 void *Arc_AllocPMM() {
 	return freelist_alloc(pmm_meta);
@@ -62,6 +63,51 @@ int init_pmm() {
 
 	uint64_t total_free = 0;
 
+	ARC_DEBUG(INFO, "Creating low allocator:\n");
+
+	// Initialize low memory
+	for (int i = 0; i < _boot_meta.arc_mmap_len; i++) {
+		if (mmap[i].type != ARC_MEMORY_BOOTSTRAP || mmap[i].base >= 0x100000) {
+			continue;
+		}
+
+		// Round up
+		uint64_t base = ALIGN(mmap[i].base, PAGE_SIZE);
+		// Round down
+		uint64_t ceil = ((mmap[i].base + mmap[i].len) >> 12) << 12;
+
+		if (base == 0) {
+			base += PAGE_SIZE;
+		}
+
+		ARC_DEBUG(INFO, "\tFound available entry %d (0x%"PRIx64" -> 0x%"PRIx64"), initializing freelist\n", i, base, ceil);
+
+		void *list = init_freelist(base + _boot_meta.hhdm_vaddr, ceil + _boot_meta.hhdm_vaddr, PAGE_SIZE);
+
+		int ret = 0;
+
+		if (pmm_low_meta == NULL) {
+			// Create primary list
+			ARC_DEBUG(INFO, "\t\tEstablished primary low list\n");
+			pmm_low_meta = list;
+		} else {
+			ARC_DEBUG(INFO, "\t\tLinking newly made list into primary low\n")
+			// Link lists
+			ret = link_freelists(pmm_low_meta, list);
+		}
+
+		if (ret != 0) {
+			ARC_DEBUG(ERR, "\t\tFailed to link lists (%p, %p), code: %d\n", pmm_low_meta, list, ret);
+		}
+
+		total_free += mmap[i].len;
+	}
+
+	_boot_meta.pmm_low_state = (uintptr_t)pmm_low_meta;
+
+	ARC_DEBUG(INFO, "Successfully initialized low PMM, 0x%"PRIx64" bytes free\n", total_free);
+
+	ARC_DEBUG(INFO, "Creating high allocator:\n");
 	for (int i = 0; i < _boot_meta.arc_mmap_len; i++) {
 		if (mmap[i].type != ARC_MEMORY_AVAILABLE) {
 			continue;
@@ -72,8 +118,10 @@ int init_pmm() {
 			continue;
 		}
 
-		uint64_t base = mmap[i].base;
-		uint64_t ceil = mmap[i].base + mmap[i].len;
+		// Round up
+		uint64_t base = ALIGN(mmap[i].base, PAGE_SIZE);
+		// Round down
+		uint64_t ceil = ((mmap[i].base + mmap[i].len) >> 12) << 12;
 
 		ARC_DEBUG(INFO, "\tFound available entry %d (0x%"PRIx64" -> 0x%"PRIx64"), initializing a freelist\n", i, base, ceil);
 
@@ -105,7 +153,7 @@ int init_pmm() {
 
 	_boot_meta.pmm_state = (uintptr_t)pmm_meta;
 
-	ARC_DEBUG(INFO, "Successfully initialized PMM, 0x%"PRIx64" bytes free\n", total_free);
+	ARC_DEBUG(INFO, "Successfully initialized high PMM, 0x%"PRIx64" bytes free (high + low)\n", total_free);
 
 	return 0;
 }
