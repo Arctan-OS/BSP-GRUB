@@ -81,6 +81,7 @@ extern pml4
 extern _kernel_station
 global _entry
 _entry:
+        cli
         ;; Setup everything
         mov ebp, __BOOTSTRAP_STACK__
         mov esp, ebp

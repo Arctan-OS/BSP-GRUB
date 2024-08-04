@@ -31,9 +31,7 @@ bits 32
 global _install_idt
 extern idtr
 _install_idt:
-        cli
         lidt [idtr]
-        sti
         ret
 
 %macro PUSH_ALL 0
