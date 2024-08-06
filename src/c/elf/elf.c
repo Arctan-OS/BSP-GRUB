@@ -181,6 +181,7 @@ uint64_t elf_load64(uint8_t *data) {
 			ARC_DEBUG(INFO, "\t\tSection is of type NOBITS, allocating %d pages and mapping\n", objects);
 
 			phys_base = (uintptr_t)Arc_ContiguousAllocPMM(objects);
+			memset((void *)phys_base, 0, size);
 
 			ARC_DEBUG(INFO, "\t\tSection new phys_base: 0x%"PRIx64"\n", phys_base);
 		}

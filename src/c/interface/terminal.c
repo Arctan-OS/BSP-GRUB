@@ -87,7 +87,7 @@ void term_putchar(char c) {
                         int rx = 0;
                         for (int j = 8 - 1; j >= 0; j--) {
                                 if (((character_rom[c * 8 + i] >> j) & 1) == 1 && c != 0) {
-                                        *((uint32_t *)term_address + (i + sy) * term_w + (sx + rx)) = fg;
+                                        ARC_FB_DRAW(term_address, (sx + rx), (i + sy) * term_w, term_bpp, fg);
                                 }
                                 rx++;
                         }

@@ -29,6 +29,23 @@
 
 #include <stdint.h>
 
+typedef struct {
+	uint32_t data : 24;
+}__attribute__((packed)) uint24_s;
+
+#define ARC_FB_DRAW(__addr, __x, __y, __bpp, __color)			\
+	switch (__bpp) {						\
+		case 32:						\
+			*((uint32_t *)__addr + __x + __y) = __color;	\
+			break;						\
+		case 24:						\
+			((uint24_s *)__addr + __x + __y)->data = __color; \
+			break;						\
+		case 16:						\
+			*((uint16_t *)__addr + __x + __y) = __color;	\
+			break;						\
+	}
+
 void set_term(void *address, int w, int h, int bpp);
 void term_putchar(char c);
 void term_set_fg(uint32_t color);
