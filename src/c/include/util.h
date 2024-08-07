@@ -34,18 +34,22 @@
 #include <interface/printf.h>
 #include <interface/terminal.h>
 
-#define ARC_DEBUG_NAME_STR "[BOOTSTRAP "__FILE__":%d]"
+#define ARC_DEBUG_STRINGIFY(val) #val
+#define ARC_DEBUG_TOSTRING(val) ARC_DEBUG_STRINGIFY(val)
+#define ARC_DEBUG_NAME_STR "[BOOTSTRAP "__FILE__":"ARC_DEBUG_TOSTRING(__LINE__)"]"
 #define ARC_DEBUG_NAME_SEP_STR " : "
+#define ARC_DEBUG_INFO_STR "[INFO]"
+#define ARC_DEBUG_WARN_STR "[WARNING]"
 #define ARC_DEBUG_ERR_STR  "[ERROR]"
 
 #define ARC_DEBUG(__level__, ...) ARC_DEBUG_##__level__(__VA_ARGS__)
-#define ARC_DEBUG_ERR(...)  term_set_fg(0x00FF0000); printf(ARC_DEBUG_ERR_STR  ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
+#define ARC_DEBUG_ERR(...)  term_set_fg(0x00FF0000); printf(ARC_DEBUG_ERR_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR __VA_ARGS__);
 
 #ifdef ARC_DEBUG_ENABLE
 #define ARC_DEBUG_INFO_STR "[INFO]"
 #define ARC_DEBUG_WARN_STR "[WARNING]"
-#define ARC_DEBUG_INFO(...) term_set_fg(0xFFFFFFFF); printf(ARC_DEBUG_INFO_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
-#define ARC_DEBUG_WARN(...) term_set_fg(0x00FFFF00); printf(ARC_DEBUG_WARN_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR, __LINE__); printf(__VA_ARGS__);
+#define ARC_DEBUG_INFO(...) term_set_fg(0xFFFFFFFF); printf(ARC_DEBUG_INFO_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR __VA_ARGS__);
+#define ARC_DEBUG_WARN(...) term_set_fg(0x00FFFF00); printf(ARC_DEBUG_WARN_STR ARC_DEBUG_NAME_STR ARC_DEBUG_NAME_SEP_STR __VA_ARGS__);
 #else
 #define ARC_DEBUG_INFO(...) ;
 #define ARC_DEBUG_WARN(...) ;
