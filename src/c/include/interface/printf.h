@@ -42,6 +42,9 @@
 
 #define printf printf_
 
+#define PRINTF_SUPPORT_DECIMAL_SPECIFIERS 0
+#define PRINTF_SUPPORT_EXPONENTIAL_SPECIFIERS 0
+
 /**
  * @author (c) Eyal Rozenberg <eyalroz1@gmx.com>
  *             2021-2022, Haifa, Palestine/Israel
