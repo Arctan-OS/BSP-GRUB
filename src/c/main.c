@@ -127,7 +127,6 @@ int helper(uint8_t *mb2i, uint32_t signature) {
 		}
 	}
 
-
 	ARC_DEBUG(INFO, "Finished bootstrapping, returning to assembly to setup long mode and jump to kernel (0x%"PRIx64")\n", kernel_entry);
 
 	// Jump back to the assembly phase, which will enable paging and put the

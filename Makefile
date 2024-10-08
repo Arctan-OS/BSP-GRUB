@@ -70,14 +70,12 @@ all: $(OFILES)
 
 # Copy various important things to grub directory
 	cp $(ARC_ROOT)/initramfs.cpio iso/boot
-	cp $(ARC_ROOT)/volatile/kernel/kernel.elf iso/boot
+	cp $(ARC_ROOT)/volatile/kernel.elf iso/boot
 	cp bootstrap.elf iso/boot
 	cp $(ARC_ROOT)/build-support/grub.cfg iso/boot/grub
 
 # Create ISO
-	grub-mkrescue -o Arctan.iso iso
-
-	cp Arctan.iso $(ARC_ROOT)
+	grub-mkrescue -o $(ARC_ROOT)/Arctan.iso iso
 
 src/c/%.o: src/c/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< -o $@
@@ -90,3 +88,5 @@ clean:
 	rm -rf iso
 	rm -f $(RODUCT)
 	find -type f -name "*.o" -delete
+
+-include clean
