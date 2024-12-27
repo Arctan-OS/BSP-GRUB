@@ -65,12 +65,12 @@ NASMFLAGS := -f elf32
 .PHONY: all
 all: $(OFILES)
 	$(LD) $(LDFLAGS) $(OFILES)
-
+	
+	rm -rf iso
 	mkdir -p iso/boot/grub
 
 # Copy various important things to grub directory
-	cp $(ARC_ROOT)/initramfs.cpio iso/boot
-	cp $(ARC_ROOT)/volatile/kernel.elf iso/boot
+	cp -r $(ARC_ROOT)/volatile/* iso/boot
 	cp bootstrap.elf iso/boot
 	cp $(ARC_ROOT)/build-support/grub.cfg iso/boot/grub
 
