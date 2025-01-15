@@ -30,6 +30,10 @@ LD ?= ld
 CPP_DEBUG_FLAG := -DARC_DEBUG_ENABLE
 CPP_E9HACK_FLAG := -DARC_E9HACK_ENABLE
 
+ifeq (,$(ARC_ROOT))
+	$(ARC_ROOT) := .
+endif
+
 ifeq (,$(wildcard ./e9hack.enable))
 # Disable E9HACK
 	CPP_E9HACK_FLAG :=
@@ -65,7 +69,7 @@ NASMFLAGS := -f elf32
 .PHONY: all
 all: $(OFILES)
 	$(LD) $(LDFLAGS) $(OFILES)
-	
+
 	rm -rf iso
 	mkdir -p iso/boot/grub
 
