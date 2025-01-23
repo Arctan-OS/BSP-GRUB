@@ -160,34 +160,61 @@ uint64_t elf_load64(uint8_t *data) {
 	ARC_DEBUG(INFO, "Mapping sections (%d sections):\n", section_count);
 
 	struct Elf64_Shdr strings = ((struct Elf64_Shdr *)(data + header->e_shoff))[header->e_shstrndx];
+	uint64_t last_phys_addr = 0;
+	uint64_t last_load_base = 0;
+
 	for (uint32_t i = 0; i < section_count; i++) {
 		struct Elf64_Shdr section_header = ((struct Elf64_Shdr *)(data + header->e_shoff))[i];
 
 		uint64_t load_base = section_header.sh_addr;
-		uint64_t phys_base = (uintptr_t)data + section_header.sh_offset;
-		uint64_t size = section_header.sh_size;
-		char *string = (char *)((uintptr_t)(data + strings.sh_offset + section_header.sh_name));
+		uint64_t load_size = section_header.sh_size;
 
-		ARC_DEBUG(INFO, "\t%3d: 0x%016"PRIx64" -> 0x%016"PRIx64", 0x%016"PRIx64" B | %s\n", i, phys_base, load_base, size, string);
+		ARC_DEBUG(INFO, "\t%3d: 0x%016"PRIx64", 0x%016"PRIx64" B | Type: %d\n", i, load_base, load_size, section_header.sh_type);
 
-		if (load_base == 0 || size == 0) {
+		if (load_base == 0 || load_size == 0) {
 			ARC_DEBUG(INFO, "\t\tSkipping as load_base or size is 0\n");
 			continue;
 		}
 
-		if (section_header.sh_type == SHT_NOBITS) {
-			uint32_t objects = ALIGN(size, PAGE_SIZE) / PAGE_SIZE;
+		size_t loaded = 0;
 
-			ARC_DEBUG(INFO, "\t\tSection is of type NOBITS, allocating %d pages and mapping\n", objects);
+		while (loaded < load_size) {
+			uint64_t phys_address = 0;
+			uint64_t load_addr = load_base + loaded;
+			uint64_t jank = load_addr % PAGE_SIZE;
+			size_t copy_size = min(PAGE_SIZE - jank, load_size - loaded);
 
-			phys_base = (uintptr_t)Arc_ContiguousAllocPMM(objects);
-			memset((void *)phys_base, 0, size);
+			if (jank != 0) {
+				if (section_header.sh_type != SHT_NOBITS) {
+					memcpy((void *)(phys_address + jank), (void *)((uintptr_t)data + section_header.sh_offset + loaded), copy_size);
+				} else {
+					memset((void *)(phys_address + jank), 0, copy_size);
+				}
+				loaded += copy_size;
+				continue;
+			} else {
+				phys_address = (uintptr_t)Arc_AllocPMM();
+			}
 
-			ARC_DEBUG(INFO, "\t\tSection new phys_base: 0x%"PRIx64"\n", phys_base);
-		}
+			if (phys_address == 0) {
+				// Fail
+				ARC_DEBUG(ERR, "Failed to allocate\n");
+			}
 
-		for (uint64_t page = 0; page < size; page += PAGE_SIZE) {
-			vmm_map(phys_base + page, load_base + page, 0);
+			if (vmm_map(phys_address, load_addr, 0) != 0) {
+				// Fail
+				ARC_DEBUG(ERR, "Failed to map\n");
+			}
+
+			if (section_header.sh_type != SHT_NOBITS) {
+				memcpy((void *)(phys_address + jank), (void *)((uintptr_t)data + section_header.sh_offset + loaded), copy_size);
+			} else {
+				memset((void *)(phys_address + jank), 0, copy_size);
+			}
+
+			last_load_base = load_base;
+			last_phys_addr = phys_address;
+			loaded += copy_size;
 		}
 	}
 
