@@ -160,9 +160,8 @@ uint64_t elf_load64(uint8_t *data) {
 	ARC_DEBUG(INFO, "Mapping sections (%d sections):\n", section_count);
 
 	struct Elf64_Shdr strings = ((struct Elf64_Shdr *)(data + header->e_shoff))[header->e_shstrndx];
-	uint64_t last_phys_addr = 0;
-	uint64_t last_load_base = 0;
 
+	uint64_t phys_address = 0;
 	for (uint32_t i = 0; i < section_count; i++) {
 		struct Elf64_Shdr section_header = ((struct Elf64_Shdr *)(data + header->e_shoff))[i];
 
@@ -179,7 +178,6 @@ uint64_t elf_load64(uint8_t *data) {
 		size_t loaded = 0;
 
 		while (loaded < load_size) {
-			uint64_t phys_address = 0;
 			uint64_t load_addr = load_base + loaded;
 			uint64_t jank = load_addr % PAGE_SIZE;
 			size_t copy_size = min(PAGE_SIZE - jank, load_size - loaded);
@@ -198,12 +196,17 @@ uint64_t elf_load64(uint8_t *data) {
 
 			if (phys_address == 0) {
 				// Fail
-				ARC_DEBUG(ERR, "Failed to allocate\n");
+				ARC_DEBUG(ERR, "Failed to allocate new page, quiting load\n");
+				entry_addr = 0;
+				break;
 			}
 
 			if (vmm_map(phys_address, load_addr, 0) != 0) {
 				// Fail
-				ARC_DEBUG(ERR, "Failed to map\n");
+				ARC_DEBUG(ERR, "Failed to map in new page, quiting load\n");
+				entry_addr = 0;
+				Arc_FreePMM((void *)phys_address);
+				break;
 			}
 
 			if (section_header.sh_type != SHT_NOBITS) {
@@ -212,8 +215,6 @@ uint64_t elf_load64(uint8_t *data) {
 				memset((void *)(phys_address + jank), 0, copy_size);
 			}
 
-			last_load_base = load_base;
-			last_phys_addr = phys_address;
 			loaded += copy_size;
 		}
 	}
