@@ -38,45 +38,27 @@
 // Allocate one object in given list
 // Return: non-NULL = success
 void *freelist_alloc(struct ARC_FreelistMeta *meta) {
-	mutex_lock(&meta->mutex);
-
-	while (meta->free_objects < 1 && meta != NULL) {
-		if (meta->next != NULL) {
-			mutex_lock(&meta->next->mutex);
-		}
-
-		mutex_unlock(&meta->mutex);
-		meta = meta->next;
-	}
-
 	if (meta == NULL) {
 		ARC_DEBUG(INFO, "Found meta is NULL\n");
 		return NULL;
 	}
-
+	
+	spinlock_lock(&meta->lock);
 	// Get address, mark as used
 	void *address = (void *)meta->head;
-	meta->head = meta->head->next;
 
-	meta->free_objects--;
+	if (address != NULL) {
+		meta->head = meta->head->next;
+		meta->free_objects--;
 
-	mutex_unlock(&meta->mutex);
+	}
 
+	spinlock_unlock(&meta->lock);
+	
 	return address;
 }
 
 void *freelist_contig_alloc(struct ARC_FreelistMeta *meta, uint64_t objects) {
-	mutex_lock(&meta->mutex);
-
-	while (meta->free_objects < objects && meta != NULL) {
-		if (meta->next != NULL) {
-			mutex_lock(&meta->next->mutex);
-		}
-
-		mutex_unlock(&meta->mutex);
-		meta = meta->next;
-	}
-
 	if (meta == NULL) {
 		ARC_DEBUG(INFO, "Found meta is NULL\n");
 		return NULL;
@@ -135,8 +117,6 @@ void *freelist_contig_alloc(struct ARC_FreelistMeta *meta, uint64_t objects) {
 	meta->free_objects -= objects;
 
 	if (fails == 0) {
-		mutex_unlock(&meta->mutex);
-
 		// FIRST TRY!!!!
 		// Just return, no pages to be freed
 		return min(base, allocation);
@@ -151,8 +131,6 @@ void *freelist_contig_alloc(struct ARC_FreelistMeta *meta, uint64_t objects) {
 		current = next;
 	}
 
-	mutex_unlock(&meta->mutex);
-
 	return min(base, allocation);
 }
 
@@ -164,17 +142,6 @@ void *freelist_free(struct ARC_FreelistMeta *meta, void *address) {
 		return NULL;
 	}
 
-	mutex_lock(&meta->mutex);
-
-	while (meta != NULL && !ADDRESS_IN_META(address, meta)) {
-		if (meta->next != NULL) {
-			mutex_lock(&meta->next->mutex);
-		}
-
-		mutex_unlock(&meta->mutex);
-		meta = meta->next;
-	}
-
 	if (meta == NULL) {
 		ARC_DEBUG(ERR, "Could not find %p in given list\n", address);
 		return NULL;
@@ -182,13 +149,15 @@ void *freelist_free(struct ARC_FreelistMeta *meta, void *address) {
 
 	struct ARC_FreelistNode *node = (struct ARC_FreelistNode *)address;
 
+	spinlock_lock(&meta->lock);
+
 	// Mark as free
 	node->next = meta->head;
 	meta->head = node;
 
 	meta->free_objects++;
 
-	mutex_unlock(&meta->mutex);
+	spinlock_unlock(&meta->lock);
 
 	return address;
 }
@@ -197,17 +166,6 @@ void *freelist_contig_free(struct ARC_FreelistMeta *meta, void *address, uint64_
 	if (meta == NULL || address == NULL) {
 		ARC_DEBUG(ERR, "Failed to free %p in %p\n", address, meta);
 		return NULL;
-	}
-
-	mutex_lock(&meta->mutex);
-
-	while (meta != NULL && !ADDRESS_IN_META(address, meta)) {
-		if (meta->next != NULL) {
-			mutex_lock(&meta->next->mutex);
-		}
-
-		mutex_unlock(&meta->mutex);
-		meta = meta->next;
 	}
 
 	if (meta == NULL) {
@@ -225,41 +183,7 @@ void *freelist_contig_free(struct ARC_FreelistMeta *meta, void *address, uint64_
 
 	meta->free_objects += objects;
 
-	mutex_unlock(&meta->mutex);
-
 	return address;
-}
-
-// Combine list A and list B into a single list, combined
-// Return: 0 = success
-// Return: -1 = object size mismatch
-// Return: -2 = either list was NULL
-int link_freelists(struct ARC_FreelistMeta *A, struct ARC_FreelistMeta *B) {
-	if (A == NULL || B == NULL) {
-		return -2;
-	}
-
-	if (A->object_size != B->object_size) {
-		// Object size mismatch, should not link lists
-		return -1;
-	}
-
-	mutex_lock(&A->mutex);
-
-	// Advance to the last list
-	struct ARC_FreelistMeta *last = A;
-	while (last->next != NULL) {
-		mutex_lock(&last->next->mutex);
-		mutex_unlock(&last->mutex);
-		last = last->next;
-	}
-
-	// Link A and B
-	last->next = B;
-
-	mutex_unlock(&last->mutex);
-
-	return 0;
 }
 
 struct ARC_FreelistMeta *init_freelist(uint64_t _base, uint64_t _ceil, uint64_t _object_size) {
@@ -277,7 +201,7 @@ struct ARC_FreelistMeta *init_freelist(uint64_t _base, uint64_t _ceil, uint64_t 
 
 	memset(meta, 0, sizeof(struct ARC_FreelistMeta));
 
-	init_static_mutex(&meta->mutex);
+	init_static_spinlock(&meta->lock);
 
 	// Number of objects to accomodate meta
 	int objects = (sizeof(struct ARC_FreelistMeta) / _object_size) + 1;

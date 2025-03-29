@@ -27,24 +27,22 @@
 #include <lib/atomics.h>
 #include <util.h>
 
-int init_static_mutex(ARC_GenericMutex *mutex) {
-	if (mutex == NULL) {
+int init_static_spinlock(ARC_GenericSpinlock *spinlock) {
+	if (spinlock == NULL) {
 		return 1;
 	}
 
-	memset(mutex, 0, sizeof(ARC_GenericMutex));
+	memset(spinlock, 0, sizeof(ARC_GenericSpinlock));
 
 	return 0;
 }
 
-int mutex_lock(ARC_GenericMutex *mutex) {
-	// Atomically lock and yield if it is locked
-	(void)mutex;
+int spinlock_lock(ARC_GenericSpinlock *spinlock) {
+	(void)spinlock;
 	return 0;
 }
 
-int mutex_unlock(ARC_GenericMutex *mutex) {
-	// Atomically unlock
-	(void)mutex;
+int spinlock_unlock(ARC_GenericSpinlock *spinlock) {
+	(void)spinlock;
 	return 0;
 }

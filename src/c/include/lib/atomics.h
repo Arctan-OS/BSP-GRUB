@@ -33,11 +33,8 @@
 /// Generic spinlock
 typedef _Atomic int ARC_GenericSpinlock;
 
-/// Generic mutex
-typedef _Atomic int ARC_GenericMutex;
-
-int init_static_mutex(ARC_GenericMutex *mutex);
-int mutex_lock(ARC_GenericMutex *mutex);
-int mutex_unlock(ARC_GenericMutex *mutex);
+int init_static_spinlock(ARC_GenericSpinlock *spinlock);
+int spinlock_lock(ARC_GenericSpinlock *spinlock);
+int spinlock_unlock(ARC_GenericSpinlock *mutex);
 
 #endif

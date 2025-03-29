@@ -83,7 +83,7 @@ global _entry
 _entry:
         cli
         ;; Setup everything
-        mov ebp, __BOOTSTRAP_STACK__
+        mov ebp, _BOOTSTRAP_STACK
         mov esp, ebp
         push eax
         push ebx
@@ -117,5 +117,5 @@ _boot_meta:
 
         ;; Stack
                     resb 0x2000
-global __BOOTSTRAP_STACK__
-__BOOTSTRAP_STACK__:
+global _BOOTSTRAP_STACK
+_BOOTSTRAP_STACK:

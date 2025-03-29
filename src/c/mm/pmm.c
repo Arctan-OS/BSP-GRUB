@@ -25,6 +25,7 @@
  * @DESCRIPTION
  * Abstract freelist implementation.
 */
+#include "mm/bank.h"
 #include <mm/freelist.h>
 #include <arctan.h>
 #include <mm/pmm.h>
@@ -32,23 +33,51 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-struct ARC_FreelistMeta *pmm_meta = NULL;
-struct ARC_FreelistMeta *pmm_low_meta = NULL;
+static struct ARC_BankMeta pmm_bank_low = { 0 };
+static struct ARC_BankMeta pmm_bank_high = { 0 };
 
 void *Arc_AllocPMM() {
-	return freelist_alloc(pmm_meta);
+	struct ARC_BankNode *node = pmm_bank_high.first;
+	void *a = NULL;
+	while (node != NULL && a == NULL) {
+		a = freelist_alloc(node->allocator_meta);
+		node = node->next;
+	}
+
+	return a;
 }
 
 void *Arc_FreePMM(void *address) {
-	return freelist_free(pmm_meta, address);
+	struct ARC_BankNode *node = pmm_bank_high.first;
+	void *a = NULL;
+	while (node != NULL && a != address) {
+		a = freelist_free(node->allocator_meta, address);
+		node = node->next;
+	}
+
+	return a;	
 }
 
 void *Arc_ContiguousAllocPMM(int objects) {
-	return freelist_contig_alloc(pmm_meta, objects);
+	struct ARC_BankNode *node = pmm_bank_high.first;
+	void *a = NULL;
+	while (node != NULL && a == NULL) {
+		a = freelist_contig_alloc(node->allocator_meta, objects);
+		node = node->next;
+	}
+
+	return a;
 }
 
 void *Arc_ContiguousFreePMM(void *address, int objects) {
-	return freelist_contig_free(pmm_meta, address, objects);
+	struct ARC_BankNode *node = pmm_bank_high.first;
+	void *a = NULL;
+	while (node != NULL && a != address) {
+		a = freelist_contig_free(node->allocator_meta, address, objects);
+		node = node->next;
+	}
+
+	return a;
 }
 
 int init_pmm() {
@@ -58,6 +87,9 @@ int init_pmm() {
 		ARC_DEBUG(ERR, "MMap (%p) is NULL or contains 0 (%d) entries, failed to initialize PMM\n", mmap, _boot_meta.arc_mmap_len);
 		return -1;
 	}
+
+	init_static_bank(&pmm_bank_low, ARC_MM_BANK_TYPE_PFREELIST);
+	init_static_bank(&pmm_bank_high, ARC_MM_BANK_TYPE_PFREELIST);
 
 	ARC_DEBUG(INFO, "Initializing base freelist page frame allocator (MMap: %p)\n", mmap);
 
@@ -82,28 +114,13 @@ int init_pmm() {
 
 		ARC_DEBUG(INFO, "\tFound available entry %d (0x%"PRIx64" -> 0x%"PRIx64"), initializing freelist\n", i, base, ceil);
 
-		void *list = init_freelist(base + _boot_meta.hhdm_vaddr, ceil + _boot_meta.hhdm_vaddr, PAGE_SIZE);
-
-		int ret = 0;
-
-		if (pmm_low_meta == NULL) {
-			// Create primary list
-			ARC_DEBUG(INFO, "\t\tEstablished primary low list\n");
-			pmm_low_meta = list;
-		} else {
-			ARC_DEBUG(INFO, "\t\tLinking newly made list into primary low\n")
-			// Link lists
-			ret = link_freelists(pmm_low_meta, list);
-		}
-
-		if (ret != 0) {
-			ARC_DEBUG(ERR, "\t\tFailed to link lists (%p, %p), code: %d\n", pmm_low_meta, list, ret);
-		}
+		struct ARC_FreelistMeta *list = init_freelist(base + _boot_meta.hhdm_vaddr, ceil + _boot_meta.hhdm_vaddr, PAGE_SIZE);
+		bank_add_pfreelist(&pmm_bank_low, list);
 
 		total_free += mmap[i].len;
 	}
 
-	_boot_meta.pmm_low_state = (uintptr_t)pmm_low_meta;
+	_boot_meta.pmm_low_bank = (uintptr_t)&pmm_bank_low;
 
 	ARC_DEBUG(INFO, "Successfully initialized low PMM, 0x%"PRIx64" bytes free\n", total_free);
 
@@ -131,27 +148,12 @@ int init_pmm() {
 		// still let's this code use the list as only the lower 32-bits are used
 		// by it
 		void *list = init_freelist(base + _boot_meta.hhdm_vaddr, ceil + _boot_meta.hhdm_vaddr, PAGE_SIZE);
-
-		int ret = 0;
-
-		if (pmm_meta == NULL) {
-			// Create primary list
-			ARC_DEBUG(INFO, "\t\tEstablished primary list\n");
-			pmm_meta = list;
-		} else {
-			ARC_DEBUG(INFO, "\t\tLinking newly made list into primary\n")
-			// Link lists
-			ret = link_freelists(pmm_meta, list);
-		}
-
-		if (ret != 0) {
-			ARC_DEBUG(ERR, "\t\tFailed to link lists (%p, %p), code: %d\n", pmm_meta, list, ret);
-		}
-
+		bank_add_pfreelist(&pmm_bank_high, list);
+		
 		total_free += mmap[i].len;
 	}
 
-	_boot_meta.pmm_state = (uintptr_t)pmm_meta;
+	_boot_meta.pmm_high_bank = (uintptr_t)&pmm_bank_high;
 
 	ARC_DEBUG(INFO, "Successfully initialized high PMM, 0x%"PRIx64" bytes free (high + low)\n", total_free);
 

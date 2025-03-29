@@ -45,14 +45,12 @@ struct ARC_FreelistMeta {
 	struct ARC_FreelistNode *base __attribute__((aligned(8)));
 	/// Last node.
 	struct ARC_FreelistNode *ceil __attribute__((aligned(8)));
-	/// Next joined list.
-	struct ARC_FreelistMeta *next __attribute__((aligned(8)));
 	/// Size of each node in bytes.
 	uint64_t object_size __attribute__((aligned(8)));
 	/// Number of free objects in this meta.
 	uint64_t free_objects __attribute__((aligned(8)));
 	/// Lock for everything.
-	ARC_GenericMutex mutex;
+	ARC_GenericSpinlock lock;
 }__attribute__((packed));
 
 /**
@@ -89,15 +87,6 @@ void *freelist_free(struct ARC_FreelistMeta *meta, void *address);
  * @param uint64_t objects - The number of objects the section consists of.
  * @return The base address if the free was successful. */
 void *freelist_contig_free(struct ARC_FreelistMeta *meta, void *address, uint64_t objects);
-
-/**
- * Combine list A and list B.
- *
- * @return When a 0 is returned, linking of A and B was successfull.\n
- * When a -1 is returned, the object size of A and B don't match.\n
- * When a -2 is returned, either list is NULL.\n
- * */
-int link_freelists(struct ARC_FreelistMeta *A, struct ARC_FreelistMeta *B);
 
 /**
  * Initialize the given memory as a freelist.
