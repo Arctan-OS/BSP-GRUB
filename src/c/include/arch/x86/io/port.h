@@ -38,4 +38,12 @@
  * */
 extern void outb(uint16_t port, uint8_t value);
 
+/**
+ * Extern assembly function to read from IO port.
+ *
+ * @param uint16_t port - The port to write to.
+ * @return uint8_t value on port
+ * */
+extern uint8_t inb(uint16_t port);
+
 #endif

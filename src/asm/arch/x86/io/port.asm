@@ -34,3 +34,9 @@ outb:
         mov edx, [esp + 4]
         out dx, al
         ret
+
+global inb
+inb:
+        mov edx, [esp + 4]
+        in eax, dx
+        ret

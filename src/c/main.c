@@ -42,11 +42,36 @@ uint64_t kernel_entry = 0;
 uint64_t bsp_image_base = 0;
 uint64_t bsp_image_ceil = 0;
 
+static void bodge_init_uart() {
+	uint8_t lcr = inb(ARC_E9_PORT + 3);
+
+	// No parity
+	MASKED_WRITE(lcr, 0, 3, 0b111);
+	// 1 stop bit
+	MASKED_WRITE(lcr, 0, 2, 0b1);
+	// 8 data bits
+	MASKED_WRITE(lcr, 3, 0, 0b11);
+
+	// Set divisor to 1 for fastest communications
+	uint16_t divisor = 1;
+	uint8_t dlab = inb(ARC_E9_PORT + 3);
+	MASKED_WRITE(dlab, 1, 7, 1);
+	outb(ARC_E9_PORT + 3, dlab);
+
+	outb(ARC_E9_PORT, divisor & 0xFF);
+	outb(ARC_E9_PORT + 1, (divisor >> 8) & 0xFF);
+
+	MASKED_WRITE(dlab, 0, 7, 1);
+	outb(ARC_E9_PORT + 3, dlab);
+}
+
 int helper(uint8_t *mb2i, uint32_t signature) {
 	if (signature != MULTIBOOT2_BOOTLOADER_MAGIC) {
 		ARC_DEBUG(ERR, "Not booted with Multiboot2!\n");
 		ARC_HANG;
 	}
+
+	bodge_init_uart();
 
 	memset(&_boot_meta, 0, sizeof(struct ARC_BootMeta));
 
