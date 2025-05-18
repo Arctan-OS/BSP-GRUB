@@ -33,7 +33,6 @@
 
 void putchar_(char c) {
         term_putchar(c);
-        ARC_E9_HACK(c);
 }
 
 /**

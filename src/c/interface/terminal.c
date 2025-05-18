@@ -24,6 +24,7 @@
  *
  * @DESCRIPTION
 */
+#include "arch/x86/io/port.h"
 #include <global.h>
 #include <util.h>
 
@@ -34,10 +35,10 @@ void *term_address;
 int term_w = 0;
 int term_h = 0;
 int term_bpp = 0;
-int term_x = 0;
-int term_y = 0;
-uint32_t fg = 0xFFFFFF;
-        	
+static int term_x = 0;
+static int term_y = 0;
+static uint32_t fg = 0xFFFFFF;
+
 void set_term(void *address, int w, int h, int bpp) {
         term_address = address;
         term_w = w;
@@ -98,6 +99,16 @@ void term_putchar(char c) {
                 break;
         }
         }
+
+#ifdef ARC_COM_PORT
+        uint8_t lsr = inb(ARC_COM_PORT + 5);
+        while (MASKED_READ(lsr, 5, 1) == 0) {
+                lsr = inb(ARC_COM_PORT + 5);
+        }
+
+        outb(ARC_COM_PORT, c);
+#endif
+
 }
 
 void term_set_fg(uint32_t color) {

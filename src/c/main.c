@@ -37,13 +37,14 @@
 #include <multiboot/multiboot2.h>
 #include <mm/freelist.h>
 #include <arch/x86/cpuid.h>
+#include <arch/x86/io/port.h>
 
 uint64_t kernel_entry = 0;
 uint64_t bsp_image_base = 0;
 uint64_t bsp_image_ceil = 0;
 
 static void bodge_init_uart() {
-	uint8_t lcr = inb(ARC_E9_PORT + 3);
+	uint8_t lcr = inb(ARC_COM_PORT + 3);
 
 	// No parity
 	MASKED_WRITE(lcr, 0, 3, 0b111);
@@ -54,15 +55,22 @@ static void bodge_init_uart() {
 
 	// Set divisor to 1 for fastest communications
 	uint16_t divisor = 1;
-	uint8_t dlab = inb(ARC_E9_PORT + 3);
+	uint8_t dlab = inb(ARC_COM_PORT + 3);
 	MASKED_WRITE(dlab, 1, 7, 1);
-	outb(ARC_E9_PORT + 3, dlab);
+	outb(ARC_COM_PORT + 3, dlab);
 
-	outb(ARC_E9_PORT, divisor & 0xFF);
-	outb(ARC_E9_PORT + 1, (divisor >> 8) & 0xFF);
+	outb(ARC_COM_PORT, divisor & 0xFF);
+	outb(ARC_COM_PORT + 1, (divisor >> 8) & 0xFF);
 
 	MASKED_WRITE(dlab, 0, 7, 1);
-	outb(ARC_E9_PORT + 3, dlab);
+	outb(ARC_COM_PORT + 3, dlab);
+
+        uint8_t mcr = inb(ARC_COM_PORT + 4);
+        MASKED_WRITE(mcr, 0, 4, 1);
+        outb(ARC_COM_PORT + 4, mcr);
+
+        // +5 = line status register
+        // +6 = modem status register
 }
 
 int helper(uint8_t *mb2i, uint32_t signature) {

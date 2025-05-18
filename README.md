@@ -7,6 +7,5 @@ This is the bootstrap program used to boot the Arctan-Kernel using the Multiboot
 * grub
 * mtools
 * gcc
-* ld
-* For build systems using apt: grub-pc-bin
-  * Currently, this is ALL builds as MB2BSP certifiably UEFI compatible
+* binutils
+* For build systems using APT: grub-pc-bin
