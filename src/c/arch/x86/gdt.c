@@ -4,10 +4,10 @@
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,6 +25,8 @@
  * @DESCRIPTION
  * Initial GDT Loader.
 */
+#if defined(ARC_TARGET_ARCH_X86_64) || defined(ARC_TARGET_ARCH_X86)
+
 #include <arch/x86/gdt.h>
 #include <global.h>
 #include <stdint.h>
@@ -77,3 +79,5 @@ void init_gdt() {
 
 	ARC_DEBUG(INFO, "Installed GDT\n");
 }
+
+#endif

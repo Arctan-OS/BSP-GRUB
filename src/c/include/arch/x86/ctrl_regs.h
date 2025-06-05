@@ -4,10 +4,10 @@
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -30,26 +30,20 @@
 
 #include <stdint.h>
 
-extern uint64_t _x86_CR0;
-extern uint64_t _x86_CR1;
-extern uint64_t _x86_CR2;
-extern uint64_t _x86_CR3;
-extern uint64_t _x86_CR4;
+extern uint64_t _x86_getCR0();
+extern void _x86_setCR0(uint64_t val);
 
-extern void _x86_getCR0();
-extern void _x86_setCR0();
+extern uint64_t _x86_getCR1();
+extern void _x86_setCR1(uint64_t val);
 
-extern void _x86_getCR1();
-extern void _x86_setCR1();
+extern uint64_t _x86_getCR2();
+extern void _x86_setCR2(uint64_t val);
 
-extern void _x86_getCR2();
-extern void _x86_setCR2();
+extern uint64_t _x86_getCR3();
+extern void _x86_setCR3(uint64_t val);
 
-extern void _x86_getCR3();
-extern void _x86_setCR3();
-
-extern void _x86_getCR4();
-extern void _x86_setCR4();
+extern uint64_t _x86_getCR4();
+extern void _x86_setCR4(uint64_t val);
 
 // Returns in EDX:EAX
 extern uint64_t _x86_RDMSR(uint32_t msr);

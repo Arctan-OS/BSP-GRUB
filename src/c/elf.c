@@ -4,10 +4,10 @@
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,11 +25,11 @@
  * @DESCRIPTION
  * Simple IDT to handle errors which may occur when getting to the kernel.
 */
-#include <elf/elf.h>
+#include <elf.h>
 #include <global.h>
 #include <inttypes.h>
-#include <mm/vmm.h>
-#include <mm/pmm.h>
+#include <mm/watermark.h>
+#include <arch/pager.h>
 
 #define SHT_NULL     0
 #define SHT_PROGBITS 1
@@ -149,12 +149,14 @@ struct Elf64_Phdr {
 	Elf64_Xword p_align; /* Alignment of segment */
 }__attribute__((packed));
 
-uint64_t elf_load64(uint8_t *data) {
+uint64_t elf_load64(void *page_tables, uint8_t *data) {
 	ARC_DEBUG(INFO, "Loading 64-bit ELF file (%p)\n", data);
 
 	struct Elf64_Ehdr *header = (struct Elf64_Ehdr *)data;
 
 	uint64_t entry_addr = header->e_entry;
+
+	ARC_DEBUG(INFO, "Entry: %"PRIx64"\n", entry_addr);
 
 	uint32_t section_count = header->e_shnum;
 	ARC_DEBUG(INFO, "Mapping sections (%d sections):\n", section_count);
@@ -166,7 +168,7 @@ uint64_t elf_load64(uint8_t *data) {
 		struct Elf64_Shdr section_header = ((struct Elf64_Shdr *)(data + header->e_shoff))[i];
 
 		uint64_t load_base = section_header.sh_addr;
-		uint64_t load_size = section_header.sh_size;
+		uint64_t load_size = ALIGN(section_header.sh_size, PAGE_SIZE);
 
 		ARC_DEBUG(INFO, "\t%3d: 0x%016"PRIx64", 0x%016"PRIx64" B | Type: %d\n", i, load_base, load_size, section_header.sh_type);
 
@@ -175,54 +177,21 @@ uint64_t elf_load64(uint8_t *data) {
 			continue;
 		}
 
-		size_t loaded = 0;
+		uint64_t phys = (uint64_t)data + section_header.sh_offset;
 
-		while (loaded < load_size) {
-			uint64_t load_addr = load_base + loaded;
-			uint64_t jank = load_addr % PAGE_SIZE;
-			size_t copy_size = min(PAGE_SIZE - jank, load_size - loaded);
+		if (section_header.sh_type == SHT_NOBITS) {
+			phys = (uint64_t)alloc(load_size);
+		}
 
-			if (jank != 0) {
-				if (section_header.sh_type != SHT_NOBITS) {
-					memcpy((void *)(phys_address + jank), (void *)((uintptr_t)data + section_header.sh_offset + loaded), copy_size);
-				} else {
-					memset((void *)(phys_address + jank), 0, copy_size);
-				}
-				loaded += copy_size;
-				continue;
-			} else {
-				phys_address = (uintptr_t)Arc_AllocPMM();
-			}
-
-			if (phys_address == 0) {
-				// Fail
-				ARC_DEBUG(ERR, "Failed to allocate new page, quiting load\n");
-				entry_addr = 0;
-				break;
-			}
-
-			if (vmm_map(phys_address, load_addr, 0) != 0) {
-				// Fail
-				ARC_DEBUG(ERR, "Failed to map in new page, quiting load\n");
-				entry_addr = 0;
-				Arc_FreePMM((void *)phys_address);
-				break;
-			}
-
-			if (section_header.sh_type != SHT_NOBITS) {
-				memcpy((void *)(phys_address + jank), (void *)((uintptr_t)data + section_header.sh_offset + loaded), copy_size);
-			} else {
-				memset((void *)(phys_address + jank), 0, copy_size);
-			}
-
-			loaded += copy_size;
+		if (pager_map(page_tables, load_base, phys, load_size, 0) != 0) {
+			ARC_DEBUG(ERR, "Failed to map %"PRIx64" -> %"PRIx64"\n", load_base, phys);
 		}
 	}
 
 	return entry_addr;
 }
 
-uint64_t load_elf(uint8_t *data) {
+uint64_t load_elf(void *page_tables, uint8_t *data) {
 	struct Elf64_Ehdr *header = (struct Elf64_Ehdr *)data;
 
 	if (header->e_ident[EI_CLASS] != CLASS_64) {
@@ -230,5 +199,5 @@ uint64_t load_elf(uint8_t *data) {
 		return -1;
 	}
 
-	return elf_load64(data);
+	return elf_load64(page_tables, data);
 }

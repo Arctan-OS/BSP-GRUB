@@ -1,13 +1,14 @@
+%if 0
 /**
- * @file atomics.c
+ * @file entry.asm
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan - Operating System Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan.
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,25 +25,17 @@
  *
  * @DESCRIPTION
 */
-#include <lib/atomics.h>
-#include <util.h>
+%endif
+bits 64
 
-int init_static_spinlock(ARC_GenericSpinlock *spinlock) {
-	if (spinlock == NULL) {
-		return 1;
-	}
-
-	memset(spinlock, 0, sizeof(ARC_GenericSpinlock));
-
-	return 0;
-}
-
-int spinlock_lock(ARC_GenericSpinlock *spinlock) {
-	(void)spinlock;
-	return 0;
-}
-
-int spinlock_unlock(ARC_GenericSpinlock *spinlock) {
-	(void)spinlock;
-	return 0;
-}
+extern kernel_entry
+extern Arc_KernelMeta
+extern Arc_BootMeta
+extern _stack_end
+global _kernel_station
+_kernel_station:
+        mov rax, [kernel_entry]
+        lea rdi, [rel Arc_KernelMeta]
+        lea rsi, [rel Arc_BootMeta]
+        jmp rax
+        jmp $

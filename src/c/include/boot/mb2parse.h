@@ -1,13 +1,13 @@
 /**
- * @file atomics.h
+ * @file mb2parse.h
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan - Operating System Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan.
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,18 +23,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @DESCRIPTION
+ * Provides a function for reading the multiboot2 boot information tag
+ * structure.
 */
-#ifndef ARC_LIB_ATOMICS_H
-#define ARC_LIB_ATOMICS_H
+#ifndef ARC_BOOT_MB2PARSE_H
+#define ARC_BOOT_MB2PARSE_H
 
-#include <stdatomic.h>
-#include <stdbool.h>
+#include <stdint.h>
 
-/// Generic spinlock
-typedef _Atomic int ARC_GenericSpinlock;
-
-int init_static_spinlock(ARC_GenericSpinlock *spinlock);
-int spinlock_lock(ARC_GenericSpinlock *spinlock);
-int spinlock_unlock(ARC_GenericSpinlock *mutex);
+/**
+ * Reads the tags provided by boothloader.
+ *
+ * Populates the _boot_meta, also initializes the
+ * PMM.
+ *
+ * @param void *mb2i - Pointer to the base of the first tag.
+ * @return Error code (0: success).
+ * */
+int parse_mb2i(uint8_t *mb2i);
 
 #endif

@@ -1,13 +1,13 @@
 /**
- * @file pmm.h
+ * @file idt.c
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,16 +23,25 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @DESCRIPTION
- * Abstract freelist implementation.
+ * x86(-64) specific implementation of arch/init.h
 */
-#ifndef ARC_MM_PMM_H
-#define ARC_MM_PMM_H
+#if defined(ARC_TARGET_ARCH_X86_64) || defined(ARC_TARGET_ARCH_X86)
 
-void *Arc_AllocPMM();
-void *Arc_FreePMM(void *address);
-void *Arc_ContiguousAllocPMM(int objects);
-void *Arc_ContiguousFreePMM(void *address, int objects);
+#include <arch/init.h>
+#include <arch/pager.h>
+#include <boot/mb2parse.h>
+#include <global.h>
+#include <inttypes.h>
+#include <elf.h>
+#include <arch/x86/gdt.h>
+#include <arch/x86/idt.h>
+#include <arch/cpuid.h>
 
-int init_pmm();
+int init_arch(uint8_t *mb2i) {
+	init_gdt();
+	init_idt();
+
+        return 0;
+}
 
 #endif

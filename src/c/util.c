@@ -4,10 +4,10 @@
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -47,6 +47,17 @@ int memcpy(void *a, void *b, size_t size) {
 		*(uint8_t *)(a + i) = *(uint8_t *)(b + i);
 		i++;
 	}
+
+	return 0;
+}
+
+int nmemcpy(void *a, void *b, size_t size) {
+	size_t i = size - 1;
+	while (i > 0) {
+		*(uint8_t *)(a + i) = *(uint8_t *)(b + i);
+		i--;
+	}
+	*(uint8_t *)(a) = *(uint8_t *)(b);
 
 	return 0;
 }

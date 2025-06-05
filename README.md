@@ -1,6 +1,6 @@
-# Arctan Multiboot 2 Boostrapper
+# Arctan-OS/BSP-GRUB
 ## What
-This is the bootstrap program used to boot the Arctan-Kernel using the Multiboot 2 standard.
+This is the bootstrap program used to setup the execution enviroment for Arctan-OS/Kernel if the GRUB bootloader is chosen
 
 ## Requirements
 * nasm

@@ -1,13 +1,13 @@
 /**
- * @file mbparse.h
+ * @file init.h
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,23 +23,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @DESCRIPTION
- * Provides a function for reading the multiboot2 boot information tag
- * structure.
+ * Architecture independent header file declaring (a) function(s) to initialize architecture
+ * specific features
 */
-#ifndef ARC_MULTIBOOT_MBPARSE_H
-#define ARC_MULTIBOOT_MBPARSE_H
+#ifndef ARC_ARCH_INIT
+#define ARC_ARCH_INIT
 
 #include <stdint.h>
 
-/**
- * Reads the tags provided by boothloader.
- *
- * Populates the _boot_meta, also initializes the
- * PMM.
- *
- * @param void *mb2i - Pointer to the base of the first tag.
- * @return Error code (0: success).
- * */
-int parse_mb2i(uint8_t *mb2i);
+int init_arch();
 
 #endif

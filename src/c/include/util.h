@@ -4,10 +4,10 @@
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -55,8 +55,33 @@
 #define ARC_DEBUG_WARN(...) ;
 #endif // ARC_DEBUG_ENABLE
 
+#if defined(ARC_TARGET_ARCH_X86_64) || defined(ARC_TARGET_ARCH_X86)
+#define ARC_HANG __asm__("1: hlt; jmp 1b");
+#endif
+
+
+#define ALIGN(v, a) ((v + (a - 1)) & ~(a - 1))
+
+#define max(a, b) \
+        ({ __typeof__ (a) _a = (a); \
+        __typeof__ (b) _b = (b); \
+        _a > _b ? _a : _b; })
+
+#define min(a, b) \
+        ({ __typeof__ (a) _a = (a); \
+        __typeof__ (b) _b = (b); \
+        _a < _b ? _a : _b; })
+
+#define abs(a)					\
+	(a < 0 ? -a : a)
+
+
+#define MASKED_READ(__value, __shift, __mask) (((__value) >> (__shift)) & (__mask))
+#define MASKED_WRITE(__to, __value, __shift, __mask) __to = (((__to) & ~((__mask) << (__shift))) | (((__value) & (__mask)) << (__shift)));
+
 int strcmp(char *a, char *b);
 int memcpy(void *a, void *b, size_t size);
+int nmemcpy(void *a, void *b, size_t size);
 void memset(void *mem, uint8_t value, size_t size);
 
 #endif

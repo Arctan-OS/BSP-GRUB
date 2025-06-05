@@ -1,13 +1,13 @@
 /**
- * @file mbparse.c
+ * @file mb2parse.c
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -26,18 +26,12 @@
  * Abstract freelist implementation.
 */
 #include <arctan.h>
-#include <multiboot/mbparse.h>
-#include <multiboot/multiboot2.h>
+#include <boot/mb2parse.h>
+#include <boot/multiboot2.h>
 #include <global.h>
 #include <inttypes.h>
 #include <interface/terminal.h>
 #include <stdint.h>
-
-struct ARC_MB2BootInfo {
-	uint64_t mbi_phys;
-	uint64_t fb;
-}__attribute__((packed));
-struct ARC_MB2BootInfo mb2_bootinfo = { 0 };
 
 struct mb2_base_tag {
 	uint32_t type;
@@ -82,7 +76,8 @@ int parse_mb2i(uint8_t *mb2i) {
 		return -1;
 	}
 
-	mb2_bootinfo.mbi_phys = (uintptr_t)mb2i;
+	Arc_KernelMeta.boot.proc = ARC_BOOTPROC_MB2;
+	Arc_KernelMeta.boot.info.grub_tags = (uint64_t)mb2i;
 
 	// Start at first 8-byte aligned tag
 	uint32_t offset = 8;
@@ -108,8 +103,6 @@ int parse_mb2i(uint8_t *mb2i) {
 				set_term((void *)((uintptr_t)common.framebuffer_addr), common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 				ARC_DEBUG(INFO, "Framebuffer 0x%"PRIx64" (%d) %dx%dx%d\n", common.framebuffer_addr, common.framebuffer_type, common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 
-				mb2_bootinfo.fb = (uintptr_t)tag;
-
 				break;
 			}
 
@@ -134,11 +127,11 @@ int parse_mb2i(uint8_t *mb2i) {
 				// proper variables
 				if (strcmp(info->cmdline, "arctan-module.kernel.elf") == 0) {
 					ARC_DEBUG(INFO, "\tFound kernel!\n");
-					_boot_meta.kernel_elf = (uint64_t)info->mod_start;
+					Arc_KernelMeta.kernel_elf = (uint64_t)info->mod_start;
 				} else if (strcmp(info->cmdline, "arctan-module.initramfs.cpio") == 0) {
 					ARC_DEBUG(INFO, "\tFound initramfs!\n");
-					_boot_meta.initramfs = (uint64_t)info->mod_start;
-					_boot_meta.initramfs_size = (uint64_t)(info->mod_end - info->mod_start);
+					Arc_KernelMeta.initramfs.base = (uint64_t)info->mod_start;
+					Arc_KernelMeta.initramfs.size = (uint64_t)(info->mod_end - info->mod_start);
 				}
 
 				break;
@@ -156,17 +149,12 @@ int parse_mb2i(uint8_t *mb2i) {
 				// and calculate the last address used by bootstrap.elf
 				struct multiboot_tag_load_base_addr *info = (struct multiboot_tag_load_base_addr *)tag;
 
-				bsp_image_base = (uint64_t)info->load_base_addr;
-				bsp_image_ceil = (uint64_t)bsp_image_base + (uint64_t)((uintptr_t)&__BOOTSTRAP_END__ - (uintptr_t)&__BOOTSTRAP_START__);
-				uint64_t aligned = ALIGN(bsp_image_ceil, PAGE_SIZE);
+				Arc_BootMeta.bsp_image.base = (uint64_t)info->load_base_addr;
+				Arc_BootMeta.bsp_image.size = ALIGN((uint64_t)((uintptr_t)&__BOOTSTRAP_END__ - (uintptr_t)&__BOOTSTRAP_START__), PAGE_SIZE);
 
 				ARC_DEBUG(INFO, "Base address:\n");
 				ARC_DEBUG(INFO, "\tLoaded at: 0x%"PRIx32"\n", info->load_base_addr);
-				ARC_DEBUG(INFO, "\tLast address: 0x%"PRIx64" (0x%"PRIx64")\n", bsp_image_ceil, aligned);
-
-				if (ALIGN(bsp_image_ceil, PAGE_SIZE) > bootstrap_end_phys) {
-					bootstrap_end_phys = aligned;
-				}
+				ARC_DEBUG(INFO, "\tSize: 0x%"PRIx64"\n", Arc_BootMeta.bsp_image.size);
 
 				break;
 			}
@@ -202,7 +190,6 @@ int parse_mb2i(uint8_t *mb2i) {
 				break;
 			}
 
-
 			case MULTIBOOT_TAG_TYPE_MMAP: {
 				// BIOS memory map, grab it print it, and reconstruct it into
 				// the ARC_MMap
@@ -217,8 +204,8 @@ int parse_mb2i(uint8_t *mb2i) {
 					struct multiboot_mmap_entry entry = info->entries[i];
 
 					// Update highest physical address
-					if (entry.addr + entry.len > _boot_meta.highest_address) {
-						_boot_meta.highest_address = (uint64_t)(entry.addr + entry.len);
+					if (entry.addr + entry.len > Arc_BootMeta.mem_size) {
+						Arc_BootMeta.mem_size = (uint64_t)(entry.addr + entry.len);
 					}
 
 					int overlap = 0;
@@ -276,8 +263,8 @@ int parse_mb2i(uint8_t *mb2i) {
 					arc_mmap_entry++;
 				}
 
-				_boot_meta.arc_mmap = (uintptr_t)&arc_mmap;
-				_boot_meta.arc_mmap_len = arc_mmap_entry;
+				Arc_KernelMeta.arc_mmap.base = (uintptr_t)&arc_mmap;
+				Arc_KernelMeta.arc_mmap.len = arc_mmap_entry;
 
 				const char *names[] = {
                                         [ARC_MEMORY_AVAILABLE] = "Available",
@@ -288,13 +275,12 @@ int parse_mb2i(uint8_t *mb2i) {
 				        [ARC_MEMORY_BOOTSTRAP] = "Bootstrap"
 			        };
 
-				ARC_DEBUG(INFO, "Highest physical address: 0x%"PRIx64"\n", _boot_meta.highest_address);
-				ARC_DEBUG(INFO, "Arctan MMap: 0x%"PRIx64" (%d entries)\n", _boot_meta.arc_mmap, _boot_meta.arc_mmap_len);
-				for (uint32_t i = 0; i < _boot_meta.arc_mmap_len; i++) {
+				ARC_DEBUG(INFO, "Memory size: 0x%"PRIx64"\n", Arc_BootMeta.mem_size);
+				ARC_DEBUG(INFO, "Arctan MMap: 0x%"PRIx64" (%d entries)\n", Arc_KernelMeta.arc_mmap.base, Arc_KernelMeta.arc_mmap.len);
+				for (uint32_t i = 0; i < Arc_KernelMeta.arc_mmap.len; i++) {
 					struct ARC_MMap entry = arc_mmap[i];
 					ARC_DEBUG(INFO, "\t%3d : 0x%016"PRIx64" -> 0x%016"PRIx64" (0x%016"PRIx64" bytes) | %s (%d)\n", i, entry.base, entry.base + entry.len, entry.len, names[entry.type], entry.type);
 				}
-
 
 				break;
 			}
@@ -340,7 +326,7 @@ int parse_mb2i(uint8_t *mb2i) {
 
 			case MULTIBOOT_TAG_TYPE_ACPI_NEW: {
 				struct multiboot_tag_new_acpi *acpi = (struct multiboot_tag_new_acpi *)tag;
-				_boot_meta.rsdp = (uintptr_t)&acpi->rsdp;
+				Arc_KernelMeta.rsdp = (uintptr_t)&acpi->rsdp;
 				ARC_DEBUG(INFO, "Found new ACPI (0x%"PRIx64")\n", acpi->rsdp);
 
 				break;
@@ -348,7 +334,7 @@ int parse_mb2i(uint8_t *mb2i) {
 
 			case MULTIBOOT_TAG_TYPE_ACPI_OLD: {
 				struct multiboot_tag_old_acpi *acpi = (struct multiboot_tag_old_acpi *)tag;
-				_boot_meta.rsdp = (uintptr_t)&acpi->rsdp;
+				Arc_KernelMeta.rsdp = (uintptr_t)&acpi->rsdp;
 				ARC_DEBUG(INFO, "Found old ACPI (0x%"PRIx32")\n", acpi->rsdp);
 
 				break;
@@ -393,9 +379,6 @@ int parse_mb2i(uint8_t *mb2i) {
 
 		offset += ALIGN(tag->size, 8);
 	}
-
-	_boot_meta.boot_info = (uintptr_t)&mb2_bootinfo;
-	_boot_meta.boot_proc = ARC_BOOTPROC_MB2;
 
 	return 0;
 }

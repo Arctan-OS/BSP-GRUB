@@ -5,10 +5,10 @@
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -76,8 +76,8 @@ boot_header_end:
 
 section .text
 
-extern helper
-extern pml4
+extern bsp
+extern pt_root
 extern _kernel_station
 global _entry
 _entry:
@@ -87,14 +87,14 @@ _entry:
         mov esp, ebp
         push eax
         push ebx
-        call helper
+        call bsp
 
         ;; Switch to long mode and set paging
         mov eax, cr4
         or eax, 1 << 5
         mov cr4, eax
 
-        mov eax, dword [pml4]
+        mov eax, dword [pt_root]
         mov cr3, eax
 
         mov ecx, 0xC0000080
@@ -106,15 +106,10 @@ _entry:
         or eax, 1 << 31
         mov cr0, eax
 
-        ;; Jump to x86_64.asm
+        ;; Jump to 64/entry.asm
         jmp 0x18:_kernel_station
 
 section .bss
-
-global _boot_meta
-_boot_meta:
-        resq 64
-
         ;; Stack
                     resb 0x2000
 global _BOOTSTRAP_STACK

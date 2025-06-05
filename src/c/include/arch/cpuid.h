@@ -1,13 +1,13 @@
 /**
- * @file port.h
+ * @file cpuid.h
  *
  * @author awewsomegamer <awewsomegamer@gmail.com>
  *
  * @LICENSE
- * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
- * Copyright (C) 2023-2024 awewsomegamer
+ * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+ * Copyright (C) 2023-2025 awewsomegamer
  *
- * This file is part of Arctan-MB2BSP
+ * This file is part of Arctan-OS/BSP-GRUB
  *
  * Arctan is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -23,27 +23,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @DESCRIPTION
- * C headers for assembly I/O functions.
+ * Architecture independent header file declaring (a) function(s) to check CPU features
 */
-#ifndef ARC_ARCH_X86_IO_PORT_H
-#define ARC_ARCH_X86_IO_PORT_H
+#ifndef ARC_ARCH_CPUID_H
+#define ARC_ARCH_CPUID_H
 
-#include <stdint.h>
-
-/**
- * Extern assembly function to write to IO port.
- *
- * @param uint16_t port - The port to write to.
- * @param uint8_t value - The value to write.
- * */
-extern void outb(uint16_t port, uint8_t value);
-
-/**
- * Extern assembly function to read from IO port.
- *
- * @param uint16_t port - The port to write to.
- * @return uint8_t value on port
- * */
-extern uint8_t inb(uint16_t port);
+int check_cpuid();
 
 #endif

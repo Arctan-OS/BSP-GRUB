@@ -4,10 +4,10 @@
 # * @author awewsomegamer <awewsomegamer@gmail.com>
 # *
 # * @LICENSE
-# * Arctan-MB2BSP - Multiboot2 Bootstrapper for Arctan Kernel
-# * Copyright (C) 2023-2024 awewsomegamer
+# * Arctan-OS/BSP-GRUB - GRUB bootstrapper for Arctan-OS/Kernel
+# * Copyright (C) 2023-2025 awewsomegamer
 # *
-# * This file is part of Arctan-MB2BSP
+# * This file is part of Arctan-OS/BSP-GRUB
 # *
 # * Arctan is free software; you can redistribute it and/or
 # * modify it under the terms of the GNU General Public License
@@ -28,7 +28,7 @@ CC ?= gcc
 LD ?= ld
 
 ifeq (,$(ARC_ROOT))
-	$(ARC_ROOT) := .
+	ARC_ROOT := .
 endif
 
 PRODUCT := bootstrap.elf
@@ -37,7 +37,7 @@ CFILES := $(shell find ./src/c/ -type f -name "*.c")
 ASFILES := $(shell find ./src/asm/ -type f -name "*.asm")
 OFILES := $(CFILES:.c=.o) $(ASFILES:.asm=.o)
 
-CPPFLAGS := $(CPPFLAG_DEBUG) $(CPPFLAG_E9HACK) -I src/c/include $(CPP_DEBUG_FLAG) $(ARC_DEF_COM) $(ARC_DEF_DEBUG)
+CPPFLAGS := -Isrc/c/include $(ARC_INCLUDE_DIRS) $(ARC_DEF_COM) $(ARC_DEF_DEBUG) $(ARC_DEF_ARCH)
 CFLAGS := -m32 -c -fno-stack-protector -mno-sse -mno-sse2 -masm=intel -nostdlib -nodefaultlibs -fno-builtin -mabi=sysv -mno-sse -mno-sse2
 LDFLAGS := -Tlinker.ld -melf_i386 -z max-page-size=0x1000 -o $(PRODUCT)
 NASMFLAGS := -f elf32
@@ -51,6 +51,8 @@ pre-build: clean
 $(ARC_PRODUCT): pre-build
 	$(MAKE) $(OFILES)
 	$(LD) $(LDFLAGS) $(OFILES)
+
+	$(STRIP) $(PRODUCT)
 
 	rm -rf iso
 	mkdir -p iso/boot/grub
@@ -72,5 +74,5 @@ src/asm/%.o: src/asm/%.asm
 .PHONY: clean
 clean:
 	rm -rf iso
-	rm -f $(RODUCT)
+	rm -f $(PRODUCT)
 	find -type f -name "*.o" -delete
