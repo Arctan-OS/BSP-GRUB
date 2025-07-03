@@ -95,6 +95,16 @@ int check_cpuid() {
 		ARC_DEBUG(ERR, "No LM support\n")
 		ARC_HANG
 	}
+	
+	if (((edx >> 20) & 1) == 1) {
+		ARC_DEBUG(INFO, "NX bit supported\n");
+		Arc_KernelMeta.paging_features |= 1 << ARC_PAGER_FLAG_NO_EXEC;
+	}
+
+	if (((edx >> 26) & 1) == 1) {
+		ARC_DEBUG(INFO, "1 GiB pages supported\n");
+		Arc_KernelMeta.paging_features |= 1 << ARC_PAGER_FLAG_1_GIB;
+	}
 
 	return 0;
 }

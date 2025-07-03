@@ -100,7 +100,7 @@ int parse_mb2i(uint8_t *mb2i) {
 
 				// Set framebuffer
 				struct multiboot_tag_framebuffer_common common = (struct multiboot_tag_framebuffer_common)fb_tag->common;
-				set_term((void *)((uintptr_t)common.framebuffer_addr), common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
+				set_term((void *)(common.framebuffer_addr), common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 				ARC_DEBUG(INFO, "Framebuffer 0x%"PRIx64" (%d) %dx%dx%d\n", common.framebuffer_addr, common.framebuffer_type, common.framebuffer_width, common.framebuffer_height, common.framebuffer_bpp);
 
 				break;

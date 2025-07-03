@@ -34,16 +34,26 @@ const uint8_t character_rom[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 static int term_x = 0;
 static int term_y = 0;
 static uint32_t fg = 0xFFFFFF;
+#include <inttypes.h>
 
 void set_term(void *address, int w, int h, int bpp) {
-        Arc_BootMeta.term.base = (uint64_t)address;
+        Arc_BootMeta.term.base = (uint32_t)address;
         Arc_BootMeta.term.width = w;
         Arc_BootMeta.term.height = h;
         Arc_BootMeta.term.bpp = bpp;
-        Arc_BootMeta.term.char_rom = (uint64_t)&character_rom;
+        Arc_BootMeta.term.char_rom = (uint32_t)&character_rom;
 }
 
 void term_putchar(char c) {
+#ifdef ARC_COM_PORT
+        uint8_t lsr = inb(ARC_COM_PORT + 5);
+        while (MASKED_READ(lsr, 5, 1) == 0) {
+                lsr = inb(ARC_COM_PORT + 5);
+        }
+
+        outb(ARC_COM_PORT, c);
+#endif
+
         if (Arc_BootMeta.term.base == 0) {
                 return;
         }
@@ -96,16 +106,6 @@ void term_putchar(char c) {
                 break;
         }
         }
-
-#ifdef ARC_COM_PORT
-        uint8_t lsr = inb(ARC_COM_PORT + 5);
-        while (MASKED_READ(lsr, 5, 1) == 0) {
-                lsr = inb(ARC_COM_PORT + 5);
-        }
-
-        outb(ARC_COM_PORT, c);
-#endif
-
 }
 
 void term_set_fg(uint32_t color) {
