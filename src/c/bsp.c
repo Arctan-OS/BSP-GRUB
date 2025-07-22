@@ -87,14 +87,17 @@ uint64_t bsp(uint8_t *mb2i, uint32_t signature) {
 	ARC_DEBUG(INFO, "Constructing HHDM at 0x%"PRIx64"\n", ARC_HHDM_VADDR);
 	
 	// Put together HHDM so kernel can access all physical memory
-	pager_map((void *)pt_root, ARC_HHDM_VADDR, 0, Arc_BootMeta.mem_size, 1 << ARC_PAGER_RW);
+	if (pager_map((void *)pt_root, ARC_HHDM_VADDR, 0, Arc_BootMeta.mem_size, 1 << ARC_PAGER_RW) != 0) {
+		ARC_DEBUG(ERR, "Failed to create HHDM\n");
+		ARC_HANG;
+	}
 
 	ARC_DEBUG(INFO, "Identity mapping bootstrapper\n")
 
 	// Map bootstrapper image into memory so a page fault is not immediately
 	// thrown after enabling paging and then another when trying to handle that fault
 	if (pager_map((void *)pt_root, Arc_BootMeta.bsp_image.base, Arc_BootMeta.bsp_image.base, 
-		      Arc_BootMeta.bsp_image.size, 1 << ARC_PAGER_4K) != 0) {
+		      Arc_BootMeta.bsp_image.size, 1 << ARC_PAGER_RW) != 0) {
 		ARC_DEBUG(ERR, "\tFailed to identity map!\n");
 		ARC_HANG;
 	}

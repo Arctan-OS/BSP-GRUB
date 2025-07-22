@@ -181,9 +181,10 @@ uint64_t elf_load64(void *page_tables, uint8_t *data) {
 
 		if (section_header.sh_type == SHT_NOBITS) {
 			phys = (uint64_t)alloc(load_size);
+			memset((void *)phys, 0, load_size);
 		}
 
-		if (pager_map(page_tables, load_base, phys, load_size, 0) != 0) {
+		if (pager_map(page_tables, load_base, phys, load_size, 1 << ARC_PAGER_RW) != 0) {
 			ARC_DEBUG(ERR, "Failed to map %"PRIx64" -> %"PRIx64"\n", load_base, phys);
 		}
 	}

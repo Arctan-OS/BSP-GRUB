@@ -101,7 +101,7 @@ uint64_t get_entry_bits(uint32_t level, uint32_t attributes) {
 			// 2MiB pages unless 4K specified
 			if (((attributes >> ARC_PAGER_RESV1) & 1) == 1) {
 				us_rw_overwrite = 0;
-				bits |= (!((attributes >> (ARC_PAGER_4K)) & 1)) << 7;
+				bits |= 1 << 7;
 			}
 
 			break;
@@ -113,7 +113,7 @@ uint64_t get_entry_bits(uint32_t level, uint32_t attributes) {
 			// 1GiB pages unless 4K specified
  			if (((attributes >> ARC_PAGER_RESV0) & 1) == 1) {
 				us_rw_overwrite = 0;
-				bits |= (!((attributes >> (ARC_PAGER_4K)) & 1)) << 7;
+				bits |= 1 << 7;
 			}
 
 			break;
@@ -211,16 +211,11 @@ static int pager_traverse(struct pager_traverse_info *info, int (*callback)(stru
 		return -1;
 	}
 
-	if (info->size == 0) {
-		return 0;
-	}
-
-	uint64_t target = info->virtual + info->size;
-
-	while (info->virtual < target) {
+	while (info->size) {
 		uint8_t can_gib = ((Arc_KernelMeta.paging_features >> ARC_PAGER_FLAG_1_GIB) & 1) 
-				&& (MASKED_READ(info->attributes, ARC_PAGER_4K, 1) == 0) && (info->size >= ONE_GIB); 
-		uint8_t can_2mib = (info->size >= TWO_MIB) && (MASKED_READ(info->attributes, ARC_PAGER_4K, 1) == 0);
+				   && (MASKED_READ(info->attributes, ARC_PAGER_4K, 1) == 0) && (info->size >= ONE_GIB); 
+		uint8_t can_2mib = (info->size >= TWO_MIB) 
+				   && (MASKED_READ(info->attributes, ARC_PAGER_4K, 1) == 0);
 
 		MASKED_WRITE(info->attributes, can_gib, ARC_PAGER_RESV0, 1);
 		MASKED_WRITE(info->attributes, can_2mib, ARC_PAGER_RESV1, 1);
@@ -319,6 +314,8 @@ static int pager_map_callback(struct pager_traverse_info *info, uint64_t *table,
 	}
 	
 	table[index] = info->physical | get_entry_bits(level, info->attributes);
+
+	//printf("Level %d Index %d Perms %"PRIx64"\n", level, index, table[index]);
 
 	if (info->dest_table == info->cur_table) {
 		__asm__("invlpg %0" : : "m"(info->virtual) : );
