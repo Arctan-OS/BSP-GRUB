@@ -280,6 +280,7 @@ int parse_mb2i(uint8_t *mb2i) {
 			
 				Arc_KernelMeta.arc_mmap.base = (uintptr_t)&arc_mmap;
 				Arc_KernelMeta.arc_mmap.len = entries;
+				Arc_BootMeta.mem_size = arc_mmap[entries - 1].base + arc_mmap[entries - 1].len;
 
 				const char *names[] = {
                                         [ARC_MEMORY_AVAILABLE] = "Available",
