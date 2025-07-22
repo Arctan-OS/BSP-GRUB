@@ -25,6 +25,7 @@
  * @DESCRIPTION
  * Abstract freelist implementation.
 */
+#include "util.h"
 #include <arctan.h>
 #include <boot/mb2parse.h>
 #include <boot/multiboot2.h>
@@ -89,7 +90,8 @@ int parse_mb2i(uint8_t *mb2i) {
 	// and look for modules / address related things which would
 	// help calculate bootstrap_end_phys
 	struct multiboot_tag_framebuffer *fb_tag = NULL;
-	uint32_t bootstrap_end_phys = 0x0;
+	uintptr_t bootstrap_begin_phys = 0;
+	uintptr_t bootstrap_end_phys = 0;
 
 	while (offset < total_size) {
 		struct mb2_base_tag *tag = (struct mb2_base_tag *)(mb2i + offset);
@@ -152,6 +154,8 @@ int parse_mb2i(uint8_t *mb2i) {
 				Arc_BootMeta.bsp_image.base = (uint64_t)info->load_base_addr;
 				Arc_BootMeta.bsp_image.size = ALIGN((uint64_t)((uintptr_t)&__BOOTSTRAP_END__ - (uintptr_t)&__BOOTSTRAP_START__), PAGE_SIZE);
 
+				bootstrap_begin_phys = info->load_base_addr;
+
 				ARC_DEBUG(INFO, "Base address:\n");
 				ARC_DEBUG(INFO, "\tLoaded at: 0x%"PRIx32"\n", info->load_base_addr);
 				ARC_DEBUG(INFO, "\tSize: 0x%"PRIx64"\n", Arc_BootMeta.bsp_image.size);
@@ -172,8 +176,6 @@ int parse_mb2i(uint8_t *mb2i) {
 	// After parsing primary information, parse
 	// secondary information
 	offset = 8;
-
-	ARC_DEBUG(INFO, "Bootstrap physical end: 0x%"PRIx32"\n", bootstrap_end_phys);
 
 	// Go through the rest of the tags and initialize the meta
 	//    If a memory map is found, parse it into a ARC_MMap
@@ -198,73 +200,86 @@ int parse_mb2i(uint8_t *mb2i) {
 
 				ARC_DEBUG(INFO, "Found MMap (%d, %d entries)\n", info->entry_version, entries);
 
-				uint32_t arc_mmap_entry = 0;
-
-				for (uint32_t i = 0; i < entries; i++) {
+				// Sort entries by ascending base address and place them into the list
+				for (uint32_t i = 0, j = 0; i < entries; i++) {
 					struct multiboot_mmap_entry entry = info->entries[i];
 
-					// Update highest physical address
-					if (entry.addr + entry.len > Arc_BootMeta.mem_size) {
-						Arc_BootMeta.mem_size = (uint64_t)(entry.addr + entry.len);
-					}
+					uint32_t idx = j;
 
-					int overlap = 0;
-
-					// Check if this entry is contained within another
-					for (uint32_t j = 0; j < i; j++) {
-						struct multiboot_mmap_entry cmp = info->entries[j];
-
-						// Check if entry is in cmp
-						//     cmp_low < low - The comparison's low address is lower than current
-						//     high < cmp_high - The comparison's high address is higher than current
-						if (cmp.addr < entry.addr && (entry.addr + entry.len) < (cmp.addr + cmp.len)) {
-							ARC_DEBUG(INFO, "\tOverlapping entries! (%d overlaps %d)", i, j);
-							overlap = 1;
+					for (uint32_t _j = 0; _j < j; _j++) {
+						if (entry.addr <= arc_mmap[_j].base) {
+							idx = _j;
+							nmemcpy(&arc_mmap[_j + 1], &arc_mmap[_j], (j - _j) * sizeof(struct ARC_MMap));
+							break;
 						}
 					}
 
-					if (overlap) {
-						// Overlapping sections, skip to the next one
-						continue;
-					}
-
-					uint64_t base = entry.addr;
-					uint64_t len = entry.len;
-					uint32_t type = mb2_MMType2Type(entry.type);
-
-					if (base < bootstrap_end_phys && type == ARC_MEMORY_AVAILABLE) {
-						// Entry is below bootstrap end
-						uint32_t _type = type;
-						type = ARC_MEMORY_BOOTSTRAP;
-
-						ARC_DEBUG(INFO, "\tEntry %d is below bootstrap end, marking as BOOTSTRAP\n", i);
-
-						if (bootstrap_end_phys < base + entry.len)  {
-							// Entry contains bootstrap end, split it
-							ARC_DEBUG(INFO, "\tEntry %d contains bootstrap end, splitting\n", i);
-
-							uint64_t delta = bootstrap_end_phys - base;
-
-							arc_mmap[arc_mmap_entry].base = base;
-							base += delta;
-							arc_mmap[arc_mmap_entry].len = delta;
-							len -= delta;
-							arc_mmap[arc_mmap_entry].type = ARC_MEMORY_BOOTSTRAP;
-							arc_mmap_entry++;
-
-							type = _type;
-						}
-					}
-
-					// Add entry
-					arc_mmap[arc_mmap_entry].base = base;
-					arc_mmap[arc_mmap_entry].len = len;
-					arc_mmap[arc_mmap_entry].type = type;
-					arc_mmap_entry++;
+					arc_mmap[idx].base = entry.addr;
+					arc_mmap[idx].len = entry.len;
+					arc_mmap[idx].type = mb2_MMType2Type(entry.type);
+					j++;
 				}
 
+				for (uint32_t i = 0; i < entries - 1; i++) {
+					uint64_t ceil = arc_mmap[i].base + arc_mmap[i].len;
+
+					if (arc_mmap[i + 1].base < ceil) {
+						size_t delta = min(ceil - arc_mmap[i + 1].base, arc_mmap[i + 1].len);
+
+						if (arc_mmap[i].type == arc_mmap[i + 1].type) {
+							// Merge
+							arc_mmap[i].len += arc_mmap[i + 1].len;
+
+							if (i != entries - 2) {
+								memcpy(&arc_mmap[i + 1], &arc_mmap[i + 2], (entries - i - 2) * sizeof(struct ARC_MMap));
+							} else {
+								memset(&arc_mmap[i + 1], 0, sizeof(struct ARC_MMap));
+							}
+
+							entries--;
+						}
+
+						if (arc_mmap[i].type < arc_mmap[i + 1].type) {
+							// [i] takes precendence over [i + 1]
+							arc_mmap[i + 1].base += delta;
+							arc_mmap[i + 1].len -= delta;
+
+							if (arc_mmap[i + 1].len == 0) {
+								if (i != entries - 2) {
+									memcpy(&arc_mmap[i + 1], &arc_mmap[i + 2], (entries - i - 2) * sizeof(struct ARC_MMap));
+								} else {
+									memset(&arc_mmap[i + 1], 0, sizeof(struct ARC_MMap));
+								}
+
+								entries--;
+							}
+						} else {
+							// [i + 1] takes precendence over [i]
+							arc_mmap[i].len -= delta;
+						}
+					}
+
+					if (arc_mmap[i].base >= bootstrap_begin_phys && arc_mmap[i].base < bootstrap_end_phys) {
+						size_t delta = bootstrap_end_phys - arc_mmap[i].base;
+						if (delta >= arc_mmap[i].len && arc_mmap[i].type > ARC_MEMORY_BOOTSTRAP) {
+							// Reserve
+							arc_mmap[i].type = ARC_MEMORY_BOOTSTRAP;
+						} else if (delta < arc_mmap[i].len) {
+							// Split
+							nmemcpy(&arc_mmap[i + 1], &arc_mmap[i], (entries - i) * sizeof(struct ARC_MMap));
+							arc_mmap[i + 1].len -= delta;
+							arc_mmap[i + 1].base += delta;
+							arc_mmap[i].len = delta;
+							arc_mmap[i].type = ARC_MEMORY_BOOTSTRAP;
+
+							entries++;
+						}
+					}
+
+				}
+			
 				Arc_KernelMeta.arc_mmap.base = (uintptr_t)&arc_mmap;
-				Arc_KernelMeta.arc_mmap.len = arc_mmap_entry;
+				Arc_KernelMeta.arc_mmap.len = entries;
 
 				const char *names[] = {
                                         [ARC_MEMORY_AVAILABLE] = "Available",
